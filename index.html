@@ -433,20 +433,46 @@ keepInSegment(cutV);
 
 function seek(video, time){
   return new Promise(ok => {
-    const done = () => { video.removeEventListener("seeked", done); ok(); };
+    let timer;
+    const done = () => { clearTimeout(timer); video.removeEventListener("seeked", done); ok(); };
     video.addEventListener("seeked", done);
+    timer = setTimeout(done, 4000); // ne jamais rester bloqué sur un téléphone lent
     video.currentTime = time;
   });
 }
-function loadVideo(video, url){
+// Libère le lecteur d'une vidéo (les téléphones n'en acceptent que quelques-uns à la fois)
+function freePlayer(el){
+  if (!el || !el.getAttribute("src")) return;
+  el.pause(); el.removeAttribute("src"); el.load();
+}
+function loadOnce(video, url){
   return new Promise((ok, ko) => {
     video.muted = true; video.playsInline = true; video.preload = "auto";
     video.setAttribute("playsinline", "");
     if (!video.isConnected){ video.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(video); }
-    video.onloadeddata = () => ok();
-    video.onerror = () => ko(new Error("Vidéo illisible"));
+    const timer = setTimeout(() => ko(new Error("Vidéo trop longue à charger")), 30000);
+    video.onloadeddata = () => { clearTimeout(timer); video.onerror = null; ok(video); };
+    video.onerror = () => { clearTimeout(timer); ko(new Error("Vidéo illisible" + (video.error ? ` (code ${video.error.code})` : ""))); };
     video.src = url;
   });
+}
+// Une seule vidéo de travail, réutilisée ; si le téléphone refuse, on libère les autres lecteurs et on réessaie
+let WORK = null;
+async function getWork(url, others = []){
+  if (WORK && WORK.dataset.url === url && WORK.readyState >= 2) return WORK;
+  if (WORK){ freePlayer(WORK); WORK.remove(); WORK = null; }
+  for (let attempt = 0; attempt < 2; attempt++){
+    const el = document.createElement("video");
+    try{
+      await loadOnce(el, url);
+      el.dataset.url = url; WORK = el; return el;
+    }catch(e){
+      freePlayer(el); el.remove();
+      if (attempt === 1) throw e;
+      others.forEach(freePlayer);
+      await new Promise(r => setTimeout(r, 500));
+    }
+  }
 }
 
 async function createLandmarker(){
@@ -462,8 +488,7 @@ async function prepare(){
   $("#prepBox").hidden = false; $("#prepBtn").disabled = true;
   try{
     cutV.pause();
-    const work = document.createElement("video");
-    await loadVideo(work, S.url);
+    const work = await getWork(S.url, [cutV]);
     S.total = work.duration || S.total;
     if (!S.end){ const seg = clampSegment(0, MAX_SECONDS, S.total); S.start = seg.start; S.end = seg.end; }
     S.duration = S.end - S.start;
@@ -499,7 +524,6 @@ async function prepare(){
       bar.value = 0.05 + 0.95 * (i / Math.max(total, 1));
     }
     lm.close && lm.close();
-    work.remove();
     computeAnkleRange();
     if (!tempo) msg.textContent = t("noAudio");
     openStep2();
@@ -587,8 +611,7 @@ async function analyze(){
   try{
     S.list = countsToAnalyze(S.end, S.t1, S.bpm, 200, S.start);
     msg.textContent = t("frames");
-    const work = document.createElement("video");
-    await loadVideo(work, S.url);
+    const work = await getWork(S.url, [cutV, cal]);
     const W = 320, H = Math.round(W / S.aspect);
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     const cx = cv.getContext("2d");
@@ -600,7 +623,6 @@ async function analyze(){
       comptes.push({ i, n: c.n, m: c.m, t: +c.t.toFixed(2), points: pointsAt(c.t), image: cv.toDataURL("image/jpeg", 0.6) });
       bar.value = 0.3 * (i + 1) / S.list.length;
     }
-    work.remove();
     // Envoi par paquets de 48 comptes (6 mesures)
     const CHUNK = 48, parts = [];
     for (let i = 0; i < comptes.length; i += CHUNK) parts.push(comptes.slice(i, i + CHUNK));
@@ -629,6 +651,7 @@ async function analyze(){
     openStep3();
   }catch(e){
     msg.textContent = t("err") + e.message;
+    if (!cal.getAttribute("src")){ cal.addEventListener("loadeddata", () => { cal.currentTime = S.start; }, { once:true }); cal.src = S.url; }
   }
   $("#anaBtn").disabled = false;
 }
@@ -640,6 +663,7 @@ keepInSegment(v);
 function openStep3(){
   $("#step1").hidden = true; $("#step2").hidden = true; $("#step3").hidden = false;
   document.documentElement.style.setProperty("--ar", `${S.aspect}`);
+  freePlayer(cal); freePlayer(cutV); freePlayer(WORK);
   v.src = S.url; v.muted = false;
   v.onloadedmetadata = () => { v.currentTime = S.start; };
   const base = 640;
@@ -693,7 +717,8 @@ $("#otherPart").onclick = () => {
   v.pause(); S.analysis = null;
   $("#step3").hidden = true; $("#step2").hidden = true; $("#step1").hidden = false; $("#prepBox").hidden = true; $("#anaBox").hidden = true;
   if (S.end < S.total - 0.5){ $("#cutStart").value = S.start + 60; updateCut(); }
-  cutV.currentTime = S.start;
+  if (!cutV.getAttribute("src")){ cutV.onloadedmetadata = null; cutV.addEventListener("loadeddata", () => { cutV.currentTime = S.start; }, { once:true }); cutV.src = S.url; }
+  else cutV.currentTime = S.start;
   window.scrollTo(0, 0);
 };
 $("#recal").onclick = () => { v.pause(); $("#step3").hidden = true; $("#step1").hidden = false; openStep2(); };
