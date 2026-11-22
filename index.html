@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0d0d0f" />
+<title>Dance Coach</title>
+<style>
+  :root{
+    --bg:#0d0d0f; --panel:#17171b; --line:#2a2a31; --text:#f1efe9; --muted:#9a978f;
+    --red:#d7263d; --gold:#d4a72c; --a:#d4a72c; --b:#4fa3ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;flex:1;letter-spacing:.3px}
+  header h1 span{color:var(--gold)}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{background:var(--panel);color:var(--muted);border:0;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+  .seg button.on{background:var(--gold);color:#000;font-weight:600}
+  main{max-width:1200px;margin:0 auto;padding:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+  .card h2{font-size:15px;margin:0 0 10px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .btn{background:var(--red);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+  .btn.gold{background:var(--gold);color:#000}
+  .btn.ghost{background:none;border:1px solid var(--line);color:var(--text);font-weight:500}
+  .btn:disabled{opacity:.4}
+  .muted{color:var(--muted);font-size:13px}
+  progress{width:100%;height:8px;accent-color:var(--gold)}
+  input[type=file]{color:var(--muted);max-width:100%}
+  .big1{font-size:54px;font-weight:700;width:90px;height:90px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:#000;border:2px solid var(--line)}
+  .big1.one{border-color:var(--gold);color:var(--gold)}
+
+  /* Écran 4 fenêtres */
+  .grid{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+  .grid.single{grid-template-columns:1fr}
+  @media(max-width:700px){ .grid:not(.single){grid-template-columns:1fr 1fr;gap:6px} .pcap{font-size:12px} }
+  .panel{background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
+  .panel[hidden]{display:none}
+  .ptitle{font-size:12px;font-weight:600;color:var(--gold);padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .panel video,.panel canvas{width:100%;display:block;background:#000;aspect-ratio:var(--ar,16/9);object-fit:contain}
+  .pcap{padding:8px 10px;font-size:14px;background:var(--panel);min-height:52px;border-top:1px solid var(--line)}
+  .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .tabs[hidden]{display:none}
+  .tabs button{flex:1;min-width:70px;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:8px 6px;font:inherit;font-size:13px;cursor:pointer}
+  .tabs button.on{border-color:var(--gold);color:var(--text)}
+  .counts{display:flex;gap:6px;align-items:center;margin-top:12px}
+  .counts .n{flex:1;height:46px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:18px;font-weight:600;cursor:pointer}
+  .counts .n.pause{color:var(--muted)}
+  .counts .n.on{border:2px solid var(--gold);background:rgba(212,167,44,.15);color:var(--gold)}
+  .counts .nav{width:40px;height:46px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--text);font-size:18px;cursor:pointer}
+  .barinfo{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--muted);gap:8px;flex-wrap:wrap}
+  .tips div{margin:6px 0}
+  .tips b{color:var(--gold)}
+  .warn{color:#ffb35c}
+  #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:20;padding:20px}
+  #login[hidden]{display:none}
+  #login .box{width:100%;max-width:340px;display:flex;flex-direction:column;gap:10px}
+  #login input{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:12px;font:inherit}
+  label.opt{display:flex;gap:6px;align-items:center;font-size:14px}
+  select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit}
+</style>
+</head>
+<body>
+
+<div id="login" hidden>
+  <div class="box">
+    <h2 style="margin:0">Dance Coach</h2>
+    <div class="muted" data-t="pw"></div>
+    <input id="pw" type="password" />
+    <button class="btn gold" id="pwBtn">OK</button>
+  </div>
+</div>
+
+<header>
+  <h1>Dance <span>Coach</span></h1>
+  <div class="seg" id="langSeg">
+    <button data-lang="fr" class="on">FR</button><button data-lang="en">EN</button><button data-lang="es">ES</button>
+  </div>
+</header>
+
+<main>
+  <!-- Étape 1 : choisir la vidéo -->
+  <section class="card" id="step1">
+    <h2 data-t="s1"></h2>
+    <div class="muted" data-t="s1tip" style="margin-bottom:10px"></div>
+    <input type="file" id="file" accept="video/*" />
+    <div id="cutBox" hidden style="margin-top:12px">
+      <video id="cutVideo" playsinline controls style="width:min(100%,480px);border-radius:10px;background:#000"></video>
+      <div class="muted" style="margin-top:8px" data-t="cutTip"></div>
+      <label class="opt" style="margin-top:8px"><span data-t="cutStart"></span> <b id="cutStartTxt">0:00</b></label>
+      <input type="range" id="cutStart" min="0" max="0" step="0.5" value="0" style="width:min(100%,480px);accent-color:var(--gold)" />
+      <label class="opt"><span data-t="cutLen"></span> <b id="cutLenTxt">60 s</b></label>
+      <input type="range" id="cutLen" min="5" max="60" step="1" value="60" style="width:min(100%,480px);accent-color:var(--gold)" />
+      <div class="row" style="margin-top:8px">
+        <button class="btn ghost" id="cutPrev" data-t="cutPrev"></button>
+        <button class="btn ghost" id="cutPlay" data-t="cutPlay"></button>
+        <button class="btn ghost" id="cutNext" data-t="cutNext"></button>
+      </div>
+      <div class="muted" id="cutRange" style="margin-top:6px"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <label class="opt"><span data-t="role"></span>
+        <select id="role">
+          <option value="leader" data-t="leader"></option>
+          <option value="follower" data-t="follower"></option>
+          <option value="both" data-t="both"></option>
+        </select>
+      </label>
+      <label class="opt"><span data-t="dance"></span>
+        <select id="danse">
+          <option value="salsa on1">Salsa on1</option>
+        </select>
+      </label>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="prepBtn" disabled data-t="prepare"></button>
+    </div>
+    <div id="prepBox" hidden style="margin-top:12px">
+      <div class="muted" id="prepMsg"></div>
+      <progress id="prepBar" max="1" value="0"></progress>
+    </div>
+  </section>
+
+  <!-- Étape 2 : caler le rythme -->
+  <section class="card" id="step2" hidden>
+    <h2 data-t="s2"></h2>
+    <div class="muted" data-t="s2tip" style="margin-bottom:10px"></div>
+    <div class="row" style="align-items:flex-start">
+      <video id="calVideo" playsinline controls style="width:min(100%,420px);border-radius:10px;background:#000"></video>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="big1" id="calCount">–</div>
+        <div class="muted"><span id="bpmTxt">–</span> BPM</div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn gold" id="oneBtn" data-t="isone"></button>
+      <button class="btn ghost" id="tapBtn" data-t="tap"></button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn ghost" data-bpm="-5">−5</button>
+      <button class="btn ghost" data-bpm="-1">−1</button>
+      <button class="btn ghost" data-bpm="1">+1</button>
+      <button class="btn ghost" data-bpm="5">+5</button>
+      <button class="btn ghost" data-bpm="half">÷2</button>
+      <button class="btn ghost" data-bpm="double">×2</button>
+    </div>
+    <div class="muted" id="tapMsg" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" id="anaBtn" data-t="analyze"></button>
+    </div>
+    <div id="anaBox" hidden style="margin-top:12px">
+      <div class="muted" id="anaMsg"></div>
+      <progress id="anaBar" max="1" value="0"></progress>
+    </div>
+  </section>
+
+  <!-- Étape 3 : les 4 fenêtres -->
+  <section id="step3" hidden>
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <div class="seg" id="viewSeg">
+        <button data-view="4" class="on" data-t="view4"></button><button data-view="1" data-t="view1"></button>
+      </div>
+      <div class="seg" id="speedSeg">
+        <button data-speed="0.5">0,5×</button><button data-speed="0.75">0,75×</button><button data-speed="1" class="on">1×</button>
+      </div>
+    </div>
+    <div class="tabs" id="tabs" hidden>
+      <button data-p="1" class="on" data-t="w1s"></button>
+      <button data-p="2" data-t="w2s"></button>
+      <button data-p="3" data-t="w3s"></button>
+      <button data-p="4" data-t="w4s"></button>
+    </div>
+    <div class="grid" id="grid">
+      <div class="panel" data-p="1">
+        <div class="ptitle" data-t="w1"></div>
+        <video id="v" playsinline controls></video>
+        <div class="pcap muted" id="cap1"></div>
+      </div>
+      <div class="panel" data-p="2">
+        <div class="ptitle" data-t="w2"></div>
+        <canvas id="c2"></canvas>
+        <div class="pcap" id="cap2"></div>
+      </div>
+      <div class="panel" data-p="3">
+        <div class="ptitle" data-t="w3"></div>
+        <canvas id="c3"></canvas>
+        <div class="pcap" id="cap3"></div>
+      </div>
+      <div class="panel" data-p="4">
+        <div class="ptitle" data-t="w4"></div>
+        <canvas id="c4"></canvas>
+        <div class="pcap" id="cap4"></div>
+      </div>
+    </div>
+
+    <div class="counts" id="counts">
+      <button class="nav" id="prevBar">‹</button>
+      <button class="n" data-n="1">1</button><button class="n" data-n="2">2</button><button class="n" data-n="3">3</button><button class="n pause" data-n="4">4</button>
+      <button class="n" data-n="5">5</button><button class="n" data-n="6">6</button><button class="n" data-n="7">7</button><button class="n pause" data-n="8">8</button>
+      <button class="nav" id="nextBar">›</button>
+    </div>
+    <div class="barinfo"><span id="barTxt"></span><span id="figTxt"></span></div>
+
+    <div class="card tips" style="margin-top:14px">
+      <h2 data-t="tips"></h2>
+      <div><b data-t="good"></b> <span id="tGood"></span></div>
+      <div><b data-t="mistake"></b> <span id="tBad"></span></div>
+      <div><b data-t="exercise"></b> <span id="tEx"></span></div>
+      <div class="warn" id="tUnsure"></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn ghost" id="restart" data-t="new"></button>
+        <button class="btn ghost" id="recal" data-t="recal"></button>
+        <button class="btn ghost" id="otherPart" data-t="otherPart"></button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// ==PURE== (fonctions sans écran, testables)
+const POSE = {
+  nose:0, lSh:11, rSh:12, lEl:13, rEl:14, lWr:15, rWr:16, lHip:23, rHip:24, lKn:25, rKn:26, lAn:27, rAn:28,
+};
+const BONES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32]];
+const UPPER = [0,11,12,13,14,15,16];
+
+// Rythme : à partir du BPM et de l'instant d'un "1"
+function beatLen(bpm){ return 60 / bpm; }
+function countIndexAt(t, t1, bpm){ return Math.floor((t - t1) / beatLen(bpm) + 1e-6); }
+function countNumber(k){ return ((k % 8) + 8) % 8 + 1; }
+function barNumber(k){ return Math.floor(k / 8) + 1; }
+function timeOfIndex(k, t1, bpm){ return t1 + k * beatLen(bpm); }
+// Indices de comptes à analyser : de 0 s à la fin, 48 au maximum
+function countsToAnalyze(end, t1, bpm, max = 48, start = 0){
+  const b = beatLen(bpm);
+  let k = Math.ceil((start - t1) / b - 1e-6);
+  const out = [];
+  while (out.length < max){
+    const t = timeOfIndex(k, t1, bpm);
+    if (t > end - 0.05) break;
+    if (t >= start) out.push({ k, t, n: countNumber(k), m: barNumber(k) });
+    k++;
+  }
+  return out;
+}
+// Passage de la vidéo : début et fin, 60 s au maximum
+function clampSegment(start, length, total, max = 60){
+  const len = Math.max(5, Math.min(length, max, total));
+  const st = Math.max(0, Math.min(start, Math.max(0, total - len)));
+  return { start: st, end: st + len };
+}
+function fmtTime(sec){
+  const m = Math.floor(sec / 60), s2 = Math.floor(sec % 60);
+  return `${m}:${String(s2).padStart(2, "0")}`;
+}
+// Ramener l'instant tapé sur la grille du tempo détecté
+function snapToGrid(t, t0, bpm){
+  const b = beatLen(bpm);
+  return t0 + Math.round((t - t0) / b) * b;
+}
+// Tempo à partir de frappes (instants en secondes)
+function tapTempo(taps){
+  if (taps.length < 4) return null;
+  const span = taps[taps.length - 1] - taps[0];
+  return span > 0 ? Math.round(600 * (taps.length - 1) / span) / 10 : null;
+}
+// Estimation du tempo à partir du signal audio (mono)
+function estimateTempo(samples, sr, minBpm = 100, maxBpm = 230){
+  const hop = 512, win = 1024, env = [];
+  let prev = 0;
+  for (let i = 0; i + win < samples.length; i += hop){
+    let e = 0;
+    for (let j = 0; j < win; j += 2) e += samples[i + j] * samples[i + j];
+    e = Math.sqrt(e / (win / 2));
+    env.push(Math.max(0, e - prev));
+    prev = e;
+  }
+  const fr = sr / hop;
+  const mean = env.reduce((a, b) => a + b, 0) / (env.length || 1);
+  const x = env.map(v => v - mean);
+  const minLag = Math.floor(fr * 60 / maxBpm), maxLag = Math.ceil(fr * 60 / minBpm);
+  let bestLag = 0, best = -Infinity;
+  for (let lag = minLag; lag <= maxLag; lag++){
+    let s = 0;
+    for (let i = 0; i + lag < x.length; i++) s += x[i] * x[i + lag];
+    s /= (x.length - lag);
+    if (s > best){ best = s; bestLag = lag; }
+  }
+  if (!bestLag) return null;
+  // affinage fin : peigne de temps (tempo au 0,1 BPM près + phase)
+  const at = pos => { const i = Math.floor(pos), f = pos - i; return (env[i] || 0) * (1 - f) + (env[i + 1] || 0) * f; };
+  const coarse = 60 * fr / bestLag;
+  let bpm = coarse, bestOff = 0, bestS = -Infinity;
+  for (let b = coarse - 5; b <= coarse + 5; b += 0.1){
+    const per = 60 * fr / b;
+    for (let off = 0; off < per; off += 0.25){
+      let s = 0;
+      for (let i = off; i < env.length - 1; i += per) s += at(i);
+      if (s > bestS){ bestS = s; bpm = b; bestOff = off; }
+    }
+  }
+  return { bpm: Math.round(bpm * 10) / 10, t0: bestOff / fr };
+}
+// Trier les danseurs de gauche à droite (A = gauche, B = droite)
+function sortPoses(poses){
+  const cx = p => ((p[23]?.[0] ?? p[0][0]) + (p[24]?.[0] ?? p[0][0])) / 2;
+  return poses.slice().sort((a, b) => cx(a) - cx(b));
+}
+// Image de poses la plus proche d'un instant
+function nearestFrame(frames, t){
+  if (!frames.length) return null;
+  let lo = 0, hi = frames.length - 1;
+  while (lo < hi){ const mid = (lo + hi) >> 1; if (frames[mid].t < t) lo = mid + 1; else hi = mid; }
+  if (lo > 0 && Math.abs(frames[lo-1].t - t) < Math.abs(frames[lo].t - t)) lo--;
+  return frames[lo];
+}
+// Cadre englobant de points visibles, avec marge, au format voulu
+function boxOf(points, margin, aspect){
+  const vis = points.filter(p => p && (p[2] ?? 1) > 0.3);
+  if (!vis.length) return null;
+  let x0 = Math.min(...vis.map(p => p[0])), x1 = Math.max(...vis.map(p => p[0]));
+  let y0 = Math.min(...vis.map(p => p[1])), y1 = Math.max(...vis.map(p => p[1]));
+  let w = x1 - x0, h = y1 - y0;
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  w = Math.max(w * (1 + margin), 0.15); h = Math.max(h * (1 + margin), 0.15);
+  if (w / h > aspect) h = w / aspect; else w = h * aspect;
+  return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+function pick(obj, lang){ return obj ? (obj[lang] || obj.fr || "") : ""; }
+// ==/PURE==
+</script>
+
+<script type="module">
+const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+const MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+const MAX_SECONDS = 60, FPS = 8;
+
+const T = {
+  fr:{ pw:"Entre ton mot de passe", s1:"1. Choisis une vidéo", s1tip:"Filme de face, pieds visibles, bonne lumière. Si la vidéo dure plus de 60 secondes, choisis le passage à décrypter.", cutTip:"Choisis le passage à décrypter (60 secondes maximum).", cutStart:"Début :", cutLen:"Durée :", cutPrev:"◀ 60 s avant", cutNext:"60 s après ▶", cutPlay:"▶ Voir le passage", cutSel:"Passage choisi :", role:"Expliquer pour :", leader:"le cavalier", follower:"la cavalière", both:"les deux", dance:"Danse :", prepare:"Préparer la vidéo",
+    loadingModel:"Chargement du détecteur de mouvements…", poses:"Repérage des corps image par image…", audio:"Écoute de la musique…", noAudio:"Pas de musique détectée : tape le tempo à l'étape suivante.",
+    s2:"2. Cale le rythme", s2tip:"Lance la vidéo. Quand tu entends un 1, appuie sur « C'est le 1 ! ». Si le compte part trop vite ou trop lentement, ajuste le BPM, ou tape en rythme sur « Taper le tempo » en commençant sur un 1 (8 frappes).", isone:"C'est le 1 !", tap:"Taper le tempo", tapNeed:"Encore quelques frappes…", tapOk:"Tempo calé sur tes frappes.", oneOk:"Le 1 est calé.",
+    analyze:"Lancer le décryptage", frames:"Capture d'une image par compte…", ai:"L'IA décrypte les comptes…", tooLong:"Seules les 60 premières secondes sont analysées.",
+    view4:"4 fenêtres", view1:"1 fenêtre", w1:"1 · Vidéo originale", w2:"2 · Vidéo décryptée", w3:"3 · Haut du corps", w4:"4 · Les pieds", w1s:"Originale", w2s:"Décryptée", w3s:"Haut", w4s:"Pieds",
+    bar:"Mesure", tips:"Conseils", good:"Ce qui est bien :", mistake:"À corriger :", exercise:"Exercice :", new:"Nouvelle vidéo", recal:"Recaler le rythme", otherPart:"Décrypter un autre passage",
+    feet:"Pieds", hands:"Mains", body:"Corps", notAnalyzed:"Compte non analysé.", left:"gauche", right:"droit", dancerA:"Danseur A (gauche)", dancerB:"Danseur B (droite)", err:"Erreur : " },
+  en:{ pw:"Enter your password", s1:"1. Choose a video", s1tip:"Film from the front, feet visible, good light. If the video is longer than 60 seconds, choose the part to break down.", cutTip:"Choose the part to break down (60 seconds max).", cutStart:"Start:", cutLen:"Length:", cutPrev:"◀ 60 s before", cutNext:"60 s after ▶", cutPlay:"▶ Watch the part", cutSel:"Selected part:", role:"Explain for:", leader:"the leader", follower:"the follower", both:"both", dance:"Dance:", prepare:"Prepare the video",
+    loadingModel:"Loading the movement detector…", poses:"Tracking bodies frame by frame…", audio:"Listening to the music…", noAudio:"No music detected: tap the tempo in the next step.",
+    s2:"2. Set the rhythm", s2tip:"Play the video. When you hear a 1, press “It's the 1!”. If the count is too fast or too slow, adjust the BPM, or tap in rhythm on “Tap tempo”, starting on a 1 (8 taps).", isone:"It's the 1!", tap:"Tap tempo", tapNeed:"A few more taps…", tapOk:"Tempo set from your taps.", oneOk:"The 1 is set.",
+    analyze:"Start the breakdown", frames:"Capturing one image per count…", ai:"The AI is breaking down the counts…", tooLong:"Only the first 60 seconds are analysed.",
+    view4:"4 windows", view1:"1 window", w1:"1 · Original video", w2:"2 · Annotated video", w3:"3 · Upper body", w4:"4 · Feet", w1s:"Original", w2s:"Annotated", w3s:"Upper", w4s:"Feet",
+    bar:"Bar", tips:"Tips", good:"What's good:", mistake:"To fix:", exercise:"Exercise:", new:"New video", recal:"Reset the rhythm", otherPart:"Break down another part",
+    feet:"Feet", hands:"Hands", body:"Body", notAnalyzed:"Count not analysed.", left:"left", right:"right", dancerA:"Dancer A (left)", dancerB:"Dancer B (right)", err:"Error: " },
+  es:{ pw:"Escribe tu contraseña", s1:"1. Elige un vídeo", s1tip:"Graba de frente, pies visibles, buena luz. Si el vídeo dura más de 60 segundos, elige el fragmento que quieres analizar.", cutTip:"Elige el fragmento a analizar (60 segundos máximo).", cutStart:"Inicio:", cutLen:"Duración:", cutPrev:"◀ 60 s antes", cutNext:"60 s después ▶", cutPlay:"▶ Ver el fragmento", cutSel:"Fragmento elegido:", role:"Explicar para:", leader:"el líder", follower:"la seguidora", both:"los dos", dance:"Baile:", prepare:"Preparar el vídeo",
+    loadingModel:"Cargando el detector de movimientos…", poses:"Detectando los cuerpos imagen por imagen…", audio:"Escuchando la música…", noAudio:"No se detecta música: marca el tempo en el siguiente paso.",
+    s2:"2. Ajusta el ritmo", s2tip:"Reproduce el vídeo. Cuando oigas un 1, pulsa «¡Es el 1!». Si la cuenta va demasiado rápida o lenta, ajusta el BPM, o pulsa a ritmo en «Marcar el tempo» empezando en un 1 (8 toques).", isone:"¡Es el 1!", tap:"Marcar el tempo", tapNeed:"Unos toques más…", tapOk:"Tempo ajustado con tus toques.", oneOk:"El 1 está ajustado.",
+    analyze:"Iniciar el análisis", frames:"Capturando una imagen por tiempo…", ai:"La IA analiza los tiempos…", tooLong:"Solo se analizan los primeros 60 segundos.",
+    view4:"4 ventanas", view1:"1 ventana", w1:"1 · Vídeo original", w2:"2 · Vídeo analizado", w3:"3 · Parte superior", w4:"4 · Los pies", w1s:"Original", w2s:"Analizado", w3s:"Arriba", w4s:"Pies",
+    bar:"Compás", tips:"Consejos", good:"Lo que está bien:", mistake:"A corregir:", exercise:"Ejercicio:", new:"Nuevo vídeo", recal:"Reajustar el ritmo", otherPart:"Analizar otro fragmento",
+    feet:"Pies", hands:"Manos", body:"Cuerpo", notAnalyzed:"Tiempo no analizado.", left:"izquierdo", right:"derecho", dancerA:"Bailarín A (izquierda)", dancerB:"Bailarín B (derecha)", err:"Error: " },
+};
+
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} },
+};
+let lang = store.get("dd_lang", "fr");
+let password = store.get("dd_pw", "");
+const S = { file:null, url:null, total:0, start:0, end:0, duration:0, aspect:16/9, frames:[], bpm:180, t0:0, t1:0, taps:[], analysis:null, list:[], view:"4", panel:"1", ankleRange:null };
+
+// ---------- Langue ----------
+function t(k){ return (T[lang] && T[lang][k]) || T.fr[k] || k; }
+function applyLang(){
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach(el => el.textContent = t(el.dataset.t));
+  document.querySelectorAll("#langSeg button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+  if (S.analysis) updateTips();
+  if (S.total) updateCut();
+}
+document.querySelectorAll("#langSeg button").forEach(b => b.onclick = () => { lang = b.dataset.lang; store.set("dd_lang", lang); applyLang(); });
+
+// ---------- Mot de passe ----------
+$("#pwBtn").onclick = () => { password = $("#pw").value; store.set("dd_pw", password); $("#login").hidden = true; };
+$("#pw").addEventListener("keydown", e => { if (e.key === "Enter") $("#pwBtn").click(); });
+
+// ---------- Étape 1 ----------
+const cutV = $("#cutVideo");
+$("#file").onchange = () => {
+  S.file = $("#file").files[0] || null;
+  $("#prepBtn").disabled = !S.file;
+  if (!S.file) return;
+  if (S.url) URL.revokeObjectURL(S.url);
+  S.url = URL.createObjectURL(S.file);
+  cutV.src = S.url;
+  cutV.onloadedmetadata = () => {
+    S.total = cutV.duration || 0;
+    $("#cutBox").hidden = false;
+    $("#cutStart").max = Math.max(0, S.total - 5);
+    $("#cutStart").value = 0;
+    $("#cutLen").max = Math.max(5, Math.min(60, Math.floor(S.total)));
+    $("#cutLen").value = Math.min(60, Math.floor(S.total));
+    updateCut();
+  };
+};
+function updateCut(){
+  const seg = clampSegment(Number($("#cutStart").value), Number($("#cutLen").value), S.total);
+  S.start = seg.start; S.end = seg.end;
+  $("#cutStart").value = S.start;
+  $("#cutStartTxt").textContent = fmtTime(S.start);
+  $("#cutLenTxt").textContent = `${Math.round(S.end - S.start)} s`;
+  $("#cutRange").textContent = `${t("cutSel")} ${fmtTime(S.start)} → ${fmtTime(S.end)} / ${fmtTime(S.total)}`;
+  $("#cutPrev").disabled = S.start <= 0;
+  $("#cutNext").disabled = S.end >= S.total - 0.5;
+}
+$("#cutStart").oninput = () => { updateCut(); cutV.currentTime = S.start; };
+$("#cutLen").oninput = updateCut;
+$("#cutPrev").onclick = () => { $("#cutStart").value = Math.max(0, S.start - 60); updateCut(); cutV.currentTime = S.start; };
+$("#cutNext").onclick = () => { $("#cutStart").value = S.start + 60; updateCut(); cutV.currentTime = S.start; };
+$("#cutPlay").onclick = () => { cutV.currentTime = S.start; cutV.play(); };
+// Les vidéos restent dans le passage choisi
+function keepInSegment(video){
+  video.addEventListener("timeupdate", () => {
+    if (!S.end) return;
+    if (video.currentTime > S.end || video.currentTime < S.start - 0.3){
+      video.currentTime = S.start;
+      if (video === cutV) video.pause();
+    }
+  });
+}
+keepInSegment(cutV);
+
+function seek(video, time){
+  return new Promise(ok => {
+    const done = () => { video.removeEventListener("seeked", done); ok(); };
+    video.addEventListener("seeked", done);
+    video.currentTime = time;
+  });
+}
+function loadVideo(video, url){
+  return new Promise((ok, ko) => {
+    video.muted = true; video.playsInline = true; video.preload = "auto";
+    video.setAttribute("playsinline", "");
+    if (!video.isConnected){ video.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(video); }
+    video.onloadeddata = () => ok();
+    video.onerror = () => ko(new Error("Vidéo illisible"));
+    video.src = url;
+  });
+}
+
+async function createLandmarker(){
+  const { PoseLandmarker, FilesetResolver } = await import(`${MP}/vision_bundle.mjs`);
+  const vision = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
+  const opts = d => ({ baseOptions:{ modelAssetPath: MODEL, delegate: d }, runningMode:"VIDEO", numPoses:2, minPoseDetectionConfidence:0.4 });
+  try{ return await PoseLandmarker.createFromOptions(vision, opts("GPU")); }
+  catch{ return await PoseLandmarker.createFromOptions(vision, opts("CPU")); }
+}
+
+async function prepare(){
+  const msg = $("#prepMsg"), bar = $("#prepBar");
+  $("#prepBox").hidden = false; $("#prepBtn").disabled = true;
+  try{
+    cutV.pause();
+    const work = document.createElement("video");
+    await loadVideo(work, S.url);
+    S.total = work.duration || S.total;
+    if (!S.end){ const seg = clampSegment(0, MAX_SECONDS, S.total); S.start = seg.start; S.end = seg.end; }
+    S.duration = S.end - S.start;
+    S.aspect = (work.videoWidth && work.videoHeight) ? work.videoWidth / work.videoHeight : 16/9;
+
+    // 1) Rythme
+    msg.textContent = t("audio"); bar.value = 0.02;
+    let tempo = null;
+    try{
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new Ctx();
+      const buf = await ctx.decodeAudioData(await S.file.arrayBuffer());
+      const a = Math.floor(buf.sampleRate * S.start), b = Math.min(buf.length, Math.floor(buf.sampleRate * S.end));
+      tempo = estimateTempo(buf.getChannelData(0).subarray(a, b), buf.sampleRate);
+      if (tempo) tempo.t0 += S.start;
+      ctx.close && ctx.close();
+    }catch{ tempo = null; }
+    if (tempo){ S.bpm = tempo.bpm; S.t0 = tempo.t0; } else { S.bpm = 180; S.t0 = S.start; }
+    S.t1 = S.t0;
+
+    // 2) Corps image par image
+    msg.textContent = t("loadingModel"); bar.value = 0.05;
+    const lm = await createLandmarker();
+    msg.textContent = t("poses");
+    S.frames = [];
+    const total = Math.floor(S.duration * FPS);
+    for (let i = 0; i <= total; i++){
+      const time = S.start + i / FPS;
+      await seek(work, Math.min(time, S.end - 0.01));
+      const r = lm.detectForVideo(work, Math.round(time * 1000) + 1);
+      const poses = (r.landmarks || []).map(p => p.map(q => [+q.x.toFixed(4), +q.y.toFixed(4), +(q.visibility ?? 1).toFixed(2)]));
+      S.frames.push({ t: time, poses: sortPoses(poses) });
+      bar.value = 0.05 + 0.95 * (i / Math.max(total, 1));
+    }
+    lm.close && lm.close();
+    work.remove();
+    computeAnkleRange();
+    if (!tempo) msg.textContent = t("noAudio");
+    openStep2();
+  }catch(e){
+    msg.textContent = t("err") + e.message;
+  }
+  $("#prepBtn").disabled = false;
+}
+$("#prepBtn").onclick = prepare;
+
+function computeAnkleRange(){
+  let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
+  for (const f of S.frames) for (const p of f.poses) for (const i of [27, 28]){
+    const q = p[i]; if (!q || q[2] < 0.3) continue;
+    x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]);
+  }
+  if (x1 <= x0){ x0 = 0; x1 = 1; } if (y1 <= y0){ y0 = 0; y1 = 1; }
+  const px = (x1 - x0) * 0.15 + 0.02, py = (y1 - y0) * 0.25 + 0.02;
+  S.ankleRange = { x0: x0 - px, x1: x1 + px, y0: y0 - py, y1: y1 + py };
+}
+
+// ---------- Étape 2 : rythme ----------
+const cal = $("#calVideo");
+keepInSegment(cal);
+function openStep2(){
+  $("#step2").hidden = false;
+  cal.src = S.url; cal.muted = false;
+  cal.onloadedmetadata = () => { cal.currentTime = S.start; };
+  $("#bpmTxt").textContent = S.bpm;
+  $("#tapMsg").textContent = "";
+  S.taps = [];
+  $("#step2").scrollIntoView({ behavior:"smooth" });
+  calLoop();
+}
+let calRaf = 0;
+function calLoop(){
+  cancelAnimationFrame(calRaf);
+  const tick = () => {
+    const k = countIndexAt(cal.currentTime, S.t1, S.bpm);
+    const n = countNumber(k);
+    const el = $("#calCount");
+    el.textContent = n; el.classList.toggle("one", n === 1);
+    calRaf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+$("#oneBtn").onclick = () => {
+  const lat = 0.08; // temps de réaction moyen
+  S.t1 = snapToGrid(cal.currentTime - lat, S.t0, S.bpm);
+  S.t0 = S.t1;
+  $("#tapMsg").textContent = t("oneOk");
+};
+$("#tapBtn").onclick = () => {
+  const now = cal.currentTime;
+  if (S.taps.length && (now < S.taps[S.taps.length - 1] || now - S.taps[S.taps.length - 1] > 2)) S.taps = [];
+  S.taps.push(now);
+  const bpm = tapTempo(S.taps);
+  if (!bpm){ $("#tapMsg").textContent = t("tapNeed"); return; }
+  S.bpm = bpm; S.t1 = S.taps[0]; S.t0 = S.t1;
+  $("#bpmTxt").textContent = S.bpm;
+  $("#tapMsg").textContent = t("tapOk");
+};
+document.querySelectorAll("[data-bpm]").forEach(b => b.onclick = () => {
+  const v = b.dataset.bpm;
+  S.bpm = v === "half" ? S.bpm / 2 : v === "double" ? S.bpm * 2 : S.bpm + Number(v);
+  S.bpm = Math.round(Math.min(Math.max(S.bpm, 60), 260) * 10) / 10;
+  $("#bpmTxt").textContent = S.bpm;
+});
+
+// ---------- Analyse ----------
+function pointsAt(time){
+  const f = nearestFrame(S.frames, time);
+  if (!f) return {};
+  const out = {};
+  f.poses.slice(0, 2).forEach((p, i) => {
+    const pt = j => p[j] && p[j][2] > 0.3 ? [p[j][0], p[j][1]] : null;
+    out[i ? "B" : "A"] = { chevilleG: pt(27), chevilleD: pt(28), poignetG: pt(15), poignetD: pt(16), hancheG: pt(23), hancheD: pt(24) };
+  });
+  return out;
+}
+async function analyze(){
+  cal.pause();
+  const msg = $("#anaMsg"), bar = $("#anaBar");
+  $("#anaBox").hidden = false; $("#anaBtn").disabled = true;
+  try{
+    S.list = countsToAnalyze(S.end, S.t1, S.bpm, 200, S.start);
+    msg.textContent = t("frames");
+    const work = document.createElement("video");
+    await loadVideo(work, S.url);
+    const W = 320, H = Math.round(W / S.aspect);
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const cx = cv.getContext("2d");
+    const comptes = [];
+    for (let i = 0; i < S.list.length; i++){
+      const c = S.list[i];
+      await seek(work, Math.min(c.t, S.end - 0.01));
+      cx.drawImage(work, 0, 0, W, H);
+      comptes.push({ i, n: c.n, m: c.m, t: +c.t.toFixed(2), points: pointsAt(c.t), image: cv.toDataURL("image/jpeg", 0.6) });
+      bar.value = 0.3 * (i + 1) / S.list.length;
+    }
+    work.remove();
+    // Envoi par paquets de 48 comptes (6 mesures)
+    const CHUNK = 48, parts = [];
+    for (let i = 0; i < comptes.length; i += CHUNK) parts.push(comptes.slice(i, i + CHUNK));
+    const merged = { figure_principale:null, comptes:[], conseils:null, incertain:null };
+    for (let pi = 0; pi < parts.length; pi++){
+      const offset = pi * CHUNK;
+      msg.textContent = `${t("ai")} (${pi + 1}/${parts.length})`;
+      let pr = 0.3 + 0.7 * pi / parts.length;
+      const timer = setInterval(() => { pr = Math.min(0.3 + 0.7 * (pi + 0.95) / parts.length, pr + 0.005); bar.value = pr; }, 500);
+      const r = await fetch("/api/analyze", {
+        method:"POST", headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ password, role: $("#role").value, danse: $("#danse").value,
+          comptes: parts[pi].map(c => ({ ...c, i: c.i - offset })) }),
+      });
+      clearInterval(timer);
+      const data = await r.json().catch(() => ({ error:`Erreur ${r.status}` }));
+      if (r.status === 401){ store.set("dd_pw", ""); password = ""; $("#login").hidden = false; }
+      if (!r.ok) throw new Error(data.error || `Erreur ${r.status}`);
+      merged.figure_principale = merged.figure_principale || data.figure_principale;
+      merged.conseils = merged.conseils || data.conseils;
+      if (data.incertain && Object.values(data.incertain).some(Boolean)) merged.incertain = merged.incertain || data.incertain;
+      (data.comptes || []).forEach((c, j) => merged.comptes.push({ ...c, i: (Number.isInteger(c.i) ? c.i : j) + offset }));
+    }
+    S.analysis = merged;
+    bar.value = 1;
+    openStep3();
+  }catch(e){
+    msg.textContent = t("err") + e.message;
+  }
+  $("#anaBtn").disabled = false;
+}
+$("#anaBtn").onclick = analyze;
+
+// ---------- Étape 3 : les 4 fenêtres ----------
+const v = $("#v"), c2 = $("#c2"), c3 = $("#c3"), c4 = $("#c4");
+keepInSegment(v);
+function openStep3(){
+  $("#step1").hidden = true; $("#step2").hidden = true; $("#step3").hidden = false;
+  document.documentElement.style.setProperty("--ar", `${S.aspect}`);
+  v.src = S.url; v.muted = false;
+  v.onloadedmetadata = () => { v.currentTime = S.start; };
+  const base = 640;
+  c2.width = base; c2.height = Math.round(base / S.aspect);
+  c3.width = base; c3.height = Math.round(base / S.aspect);
+  c4.width = base; c4.height = Math.round(base / S.aspect);
+  setView(S.view);
+  updateTips();
+  window.scrollTo(0, 0);
+  drawLoop();
+}
+function entryForIndex(k){
+  const pos = S.list.findIndex(c => c.k === k);
+  if (pos < 0 || !S.analysis?.comptes) return null;
+  return S.analysis.comptes.find(c => c.i === pos) || S.analysis.comptes[pos] || null;
+}
+function updateTips(){
+  const a = S.analysis || {};
+  $("#tGood").textContent = pick(a.conseils?.bien, lang);
+  $("#tBad").textContent = pick(a.conseils?.erreur, lang);
+  $("#tEx").textContent = pick(a.conseils?.exercice, lang);
+  $("#tUnsure").textContent = pick(a.incertain, lang);
+  lastK = null;
+}
+
+function setView(view){
+  S.view = view;
+  document.querySelectorAll("#viewSeg button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  $("#tabs").hidden = view !== "1";
+  $("#grid").classList.toggle("single", view === "1");
+  document.querySelectorAll(".panel").forEach(p => p.hidden = view === "1" && p.dataset.p !== S.panel);
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.p === S.panel));
+}
+document.querySelectorAll("#viewSeg button").forEach(b => b.onclick = () => setView(b.dataset.view));
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.panel = b.dataset.p; setView("1"); });
+document.querySelectorAll("#speedSeg button").forEach(b => b.onclick = () => {
+  v.playbackRate = Number(b.dataset.speed);
+  document.querySelectorAll("#speedSeg button").forEach(x => x.classList.toggle("on", x === b));
+});
+
+// Barre des comptes
+function currentK(){ return countIndexAt(v.currentTime, S.t1, S.bpm); }
+document.querySelectorAll("#counts .n").forEach(b => b.onclick = () => {
+  const k = currentK(); const start = k - (countNumber(k) - 1);
+  v.currentTime = Math.max(S.start, timeOfIndex(start + Number(b.dataset.n) - 1, S.t1, S.bpm) + 0.01);
+});
+$("#prevBar").onclick = () => { const k = currentK(); v.currentTime = Math.max(S.start, timeOfIndex(k - (countNumber(k) - 1) - 8, S.t1, S.bpm) + 0.01); };
+$("#nextBar").onclick = () => { const k = currentK(); v.currentTime = Math.min(S.end - 0.05, timeOfIndex(k - (countNumber(k) - 1) + 8, S.t1, S.bpm) + 0.01); };
+$("#restart").onclick = () => location.reload();
+$("#otherPart").onclick = () => {
+  v.pause(); S.analysis = null;
+  $("#step3").hidden = true; $("#step2").hidden = true; $("#step1").hidden = false; $("#prepBox").hidden = true; $("#anaBox").hidden = true;
+  if (S.end < S.total - 0.5){ $("#cutStart").value = S.start + 60; updateCut(); }
+  cutV.currentTime = S.start;
+  window.scrollTo(0, 0);
+};
+$("#recal").onclick = () => { v.pause(); $("#step3").hidden = true; $("#step1").hidden = false; openStep2(); };
+
+// Dessin
+const COLORS = ["#d4a72c", "#4fa3ff"];
+function drawSkeleton(ctx, pose, color, box, W, H){
+  const X = p => (p[0] - box.x) / box.w * W, Y = p => (p[1] - box.y) / box.h * H;
+  ctx.strokeStyle = color; ctx.lineWidth = Math.max(2, W / 200); ctx.lineCap = "round";
+  for (const [a, b] of BONES){
+    const p = pose[a], q = pose[b];
+    if (!p || !q || p[2] < 0.3 || q[2] < 0.3) continue;
+    ctx.beginPath(); ctx.moveTo(X(p), Y(p)); ctx.lineTo(X(q), Y(q)); ctx.stroke();
+  }
+  ctx.fillStyle = color;
+  for (const i of [15, 16, 27, 28]){
+    const p = pose[i]; if (!p || p[2] < 0.3) continue;
+    ctx.beginPath(); ctx.arc(X(p), Y(p), Math.max(4, W / 110), 0, 7); ctx.fill();
+  }
+}
+function label(ctx, text, x, y, size, color, bg){
+  ctx.font = `600 ${size}px -apple-system, Segoe UI, Roboto, sans-serif`;
+  const w = ctx.measureText(text).width;
+  if (bg){ ctx.fillStyle = bg; ctx.fillRect(x - 6, y - size, w + 12, size * 1.35); }
+  ctx.fillStyle = color; ctx.fillText(text, x, y);
+}
+function drawFoot(ctx, x, y, isLeft, color, n, r){
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.55, r, 0, 0, 7);
+  ctx.lineWidth = 2; ctx.strokeStyle = color;
+  if (isLeft){ ctx.stroke(); } else { ctx.fillStyle = color; ctx.globalAlpha = 0.55; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke(); }
+  ctx.fillStyle = "#fff"; ctx.font = `600 ${Math.round(r * 0.9)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(String(n), 0, 1);
+  ctx.restore();
+}
+
+let lastK = null, raf = 0;
+function drawLoop(){
+  cancelAnimationFrame(raf);
+  const tick = () => { try{ draw(); }catch(e){ /* image pas prête */ } raf = requestAnimationFrame(tick); };
+  tick();
+}
+function draw(){
+  if (!v.videoWidth) return;
+  const time = v.currentTime;
+  const k = countIndexAt(time, S.t1, S.bpm);
+  const n = countNumber(k), m = barNumber(k) - (S.list.length ? barNumber(S.list[0].k) : 1) + 1;
+  const f = nearestFrame(S.frames, time);
+  const poses = f ? f.poses : [];
+  const e = entryForIndex(k);
+  const full = { x:0, y:0, w:1, h:1 };
+
+  // Fenêtre 2 : vidéo décryptée
+  {
+    const ctx = c2.getContext("2d"), W = c2.width, H = c2.height;
+    ctx.drawImage(v, 0, 0, W, H);
+    poses.slice(0, 2).forEach((p, i) => drawSkeleton(ctx, p, COLORS[i], full, W, H));
+    const s = Math.round(H / 5);
+    ctx.fillStyle = n === 1 ? "rgba(212,167,44,.9)" : "rgba(0,0,0,.65)";
+    ctx.fillRect(W - s - 12, 12, s, s);
+    ctx.fillStyle = n === 1 ? "#000" : "#fff"; ctx.font = `700 ${Math.round(s * 0.7)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(String(n), W - s / 2 - 12, 12 + s / 2 + 2);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    const fig = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
+    if (fig) label(ctx, fig, 14, H - 16, Math.round(H / 16), "#fff", "rgba(0,0,0,.6)");
+  }
+
+  // Fenêtre 3 : haut du corps
+  {
+    const ctx = c3.getContext("2d"), W = c3.width, H = c3.height;
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+    const pts = poses.slice(0, 2).flatMap(p => UPPER.map(i => p[i]));
+    const box = boxOf(pts, 0.5, W / H) || full;
+    const vw = v.videoWidth, vh = v.videoHeight;
+    ctx.drawImage(v, box.x * vw, box.y * vh, box.w * vw, box.h * vh, 0, 0, W, H);
+    poses.slice(0, 2).forEach((p, i) => {
+      const X = q => (q[0] - box.x) / box.w * W, Y = q => (q[1] - box.y) / box.h * H;
+      ctx.strokeStyle = COLORS[i]; ctx.lineWidth = 5; ctx.lineCap = "round";
+      for (const [a, b] of [[11,12],[11,13],[13,15],[12,14],[14,16]]){
+        const pa = p[a], pb = p[b]; if (!pa || !pb || pa[2] < 0.3 || pb[2] < 0.3) continue;
+        ctx.beginPath(); ctx.moveTo(X(pa), Y(pa)); ctx.lineTo(X(pb), Y(pb)); ctx.stroke();
+      }
+      ctx.fillStyle = COLORS[i];
+      for (const j of [15, 16]){ const q = p[j]; if (q && q[2] > 0.3){ ctx.beginPath(); ctx.arc(X(q), Y(q), 9, 0, 7); ctx.fill(); } }
+    });
+    label(ctx, String(n), 14, 44, 34, "#fff", "rgba(0,0,0,.6)");
+  }
+
+  // Fenêtre 4 : les pieds, vue du sol
+  {
+    const ctx = c4.getContext("2d"), W = c4.width, H = c4.height, R = S.ankleRange || { x0:0, x1:1, y0:0, y1:1 };
+    ctx.fillStyle = "#101014"; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = "#24242b"; ctx.lineWidth = 1;
+    for (let i = 1; i < 8; i++){ ctx.beginPath(); ctx.moveTo(i * W / 8, 0); ctx.lineTo(i * W / 8, H); ctx.stroke(); }
+    for (let i = 1; i < 5; i++){ ctx.beginPath(); ctx.moveTo(0, i * H / 5); ctx.lineTo(W, i * H / 5); ctx.stroke(); }
+    const X = q => (q[0] - R.x0) / (R.x1 - R.x0) * W, Y = q => (q[1] - R.y0) / (R.y1 - R.y0) * H;
+    const start = k - (n - 1);
+    const r = Math.max(12, W / 40);
+    for (let j = 0; j < 8; j++){
+      const kk = start + j, nn = countNumber(kk);
+      if (kk > k) break;
+      const tt = timeOfIndex(kk, S.t1, S.bpm);
+      if (tt < 0) continue;
+      const ff = nearestFrame(S.frames, tt);
+      (ff?.poses || []).slice(0, 2).forEach((p, i) => {
+        const L = p[27], Rt = p[28];
+        ctx.globalAlpha = kk === k ? 1 : 0.45;
+        if (L && L[2] > 0.3) drawFoot(ctx, X(L), Y(L), true, COLORS[i], nn, r);
+        if (Rt && Rt[2] > 0.3) drawFoot(ctx, X(Rt), Y(Rt), false, COLORS[i], nn, r);
+        ctx.globalAlpha = 1;
+      });
+    }
+    poses.slice(0, 2).forEach((p, i) => {
+      for (const j of [27, 28]){ const q = p[j]; if (q && q[2] > 0.3){ ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(X(q), Y(q), 5, 0, 7); ctx.fill(); ctx.strokeStyle = COLORS[i]; ctx.lineWidth = 2; ctx.stroke(); } }
+    });
+    ctx.font = "600 15px sans-serif"; ctx.textAlign = "left";
+    ctx.fillStyle = COLORS[0]; ctx.fillText(t("dancerA"), 12, H - 34);
+    ctx.fillStyle = COLORS[1]; ctx.fillText(t("dancerB"), 12, H - 14);
+    ctx.fillStyle = "#9a978f"; ctx.textAlign = "right"; ctx.fillText(`○ ${t("left")}   ● ${t("right")}`, W - 12, H - 14);
+    ctx.textAlign = "left";
+  }
+
+  // Textes (seulement quand le compte change)
+  if (k !== lastK){
+    lastK = k;
+    document.querySelectorAll("#counts .n").forEach(b => b.classList.toggle("on", Number(b.dataset.n) === n));
+    $("#barTxt").textContent = `${t("bar")} ${m} · ${n}/8 · ${S.bpm} BPM`;
+    $("#figTxt").textContent = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
+    const none = `<span class="muted">${t("notAnalyzed")}</span>`;
+    const esc = s => String(s || "").replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+    $("#cap1").textContent = `${t("bar")} ${m} · ${n}`;
+    $("#cap2").innerHTML = e ? `<b>${esc(t("body"))} :</b> ${esc(pick(e.corps, lang))}` : none;
+    $("#cap3").innerHTML = e ? `<b>${esc(t("hands"))} :</b> ${esc(pick(e.mains, lang))}` : none;
+    $("#cap4").innerHTML = e ? `<b>${esc(t("feet"))} :</b> ${esc(pick(e.pieds, lang))}` : none;
+  }
+}
+
+// Démarrage
+applyLang();
+if (!password) $("#login").hidden = false;
+</script>
+</body>
+</html>
