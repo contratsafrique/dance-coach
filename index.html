@@ -626,29 +626,44 @@ async function analyze(){
       comptes.push({ i, n: c.n, m: c.m, t: +c.t.toFixed(2), points: pointsAt(c.t), image: cv.toDataURL("image/jpeg", 0.6) });
       bar.value = 0.3 * (i + 1) / S.list.length;
     }
-    // Envoi par paquets de 48 comptes (6 mesures)
-    const CHUNK = 48, parts = [];
+    // Envoi par petits paquets de 16 comptes (2 mesures), 3 à la fois : plus rapide et plus fiable
+    const CHUNK = 16, PAR = 3, parts = [];
     for (let i = 0; i < comptes.length; i += CHUNK) parts.push(comptes.slice(i, i + CHUNK));
-    const merged = { figure_principale:null, comptes:[], conseils:null, incertain:null };
-    for (let pi = 0; pi < parts.length; pi++){
+    const results = new Array(parts.length);
+    const t0 = Date.now();
+    let done = 0;
+    const show = (extra = "") => {
+      const sec = Math.round((Date.now() - t0) / 1000);
+      msg.textContent = `${t("ai")} ${done}/${parts.length} · ${sec} s${extra}`;
+    };
+    const tick = setInterval(() => show(), 1000);
+    async function sendPart(pi){
       const offset = pi * CHUNK;
-      msg.textContent = `${t("ai")} (${pi + 1}/${parts.length})`;
-      let pr = 0.3 + 0.7 * pi / parts.length;
-      const timer = setInterval(() => { pr = Math.min(0.3 + 0.7 * (pi + 0.95) / parts.length, pr + 0.005); bar.value = pr; }, 500);
       const req = JSON.stringify({ password, role: $("#role").value, danse: $("#danse").value,
         comptes: parts[pi].map(c => ({ ...c, i: c.i - offset })) });
-      // Si Gemini est saturé, on réessaie ce paquet (sans perdre les paquets déjà faits)
       let r, data;
       for (let a = 0; a < 3; a++){
-        if (a) { msg.textContent = `${t("ai")} (${pi + 1}/${parts.length}) · ↻ ${a + 1}/3`; await new Promise(ok => setTimeout(ok, 8000 * a)); }
-        r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" }, body: req }).catch(() => null);
-        data = r ? await r.json().catch(() => ({ error:`Erreur ${r.status}` })) : { error:"Pas de connexion" };
+        if (a) { show(` · ↻ ${a + 1}/3`); await new Promise(ok => setTimeout(ok, 6000 * a)); }
+        const ctl = new AbortController();
+        const kill = setTimeout(() => ctl.abort(), 150000); // jamais plus de 2 min 30 par paquet
+        r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" }, body: req, signal: ctl.signal }).catch(() => null);
+        clearTimeout(kill);
+        data = r ? await r.json().catch(() => ({ error:`Erreur ${r.status}` })) : { error:"Pas de réponse (connexion ou délai dépassé)" };
         if (r && (r.ok || ![500, 502, 503, 504].includes(r.status))) break;
       }
-      clearInterval(timer);
-      if (!r) throw new Error(data.error);
-      if (r.status === 401){ store.set("dd_pw", ""); password = ""; $("#login").hidden = false; }
-      if (!r.ok) throw new Error(data.error || `Erreur ${r.status}`);
+      if (r && r.status === 401){ store.set("dd_pw", ""); password = ""; $("#login").hidden = false; }
+      if (!r || !r.ok) throw new Error(data.error || `Erreur ${r ? r.status : ""}`);
+      results[pi] = { data, offset };
+      done++; bar.value = 0.3 + 0.7 * done / parts.length; show();
+    }
+    show();
+    try{
+      let next = 0;
+      const worker = async () => { while (next < parts.length){ const pi = next++; await sendPart(pi); } };
+      await Promise.all(Array.from({ length: Math.min(PAR, parts.length) }, worker));
+    } finally { clearInterval(tick); }
+    const merged = { figure_principale:null, comptes:[], conseils:null, incertain:null };
+    for (const { data, offset } of results){
       merged.figure_principale = merged.figure_principale || data.figure_principale;
       merged.conseils = merged.conseils || data.conseils;
       if (data.incertain && Object.values(data.incertain).some(Boolean)) merged.incertain = merged.incertain || data.incertain;

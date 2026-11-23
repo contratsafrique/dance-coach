@@ -63,38 +63,86 @@ Utilise l'enchaînement des images pour comprendre les mouvements entre deux com
   }
   parts.push({ text: FORMAT });
 
+  // Fournisseur d'IA : Claude ou Gemini (variable AI_PROVIDER), l'autre sert de secours s'il a une clé
+  const hasClaude = !!(process.env.ANTHROPIC_API_KEY || "").trim();
+  const hasGemini = !!(process.env.GEMINI_API_KEY || "").trim();
+  const wanted = (process.env.AI_PROVIDER || (hasClaude ? "claude" : "gemini")).toLowerCase();
+  const order = (wanted === "claude" ? ["claude", "gemini"] : ["gemini", "claude"])
+    .filter((p) => (p === "claude" ? hasClaude : hasGemini));
+  if (!order.length) return res.status(500).json({ error: "Clé manquante : ajoute ANTHROPIC_API_KEY ou GEMINI_API_KEY dans Vercel." });
+
+  let last = "Erreur IA";
+  for (const provider of order) {
+    try {
+      const text = provider === "claude" ? await askClaude(parts) : await askGemini(parts);
+      return res.status(200).json(extractJson(text));
+    } catch (e) {
+      last = `${provider === "claude" ? "Claude" : "Gemini"} : ${e.message}`;
+      if (e.fatal && order.length === 1) break;
+    }
+  }
+  return res.status(503).json({ error: "L'IA est très demandée en ce moment. Réessaie dans quelques minutes. (" + last + ")" });
+};
+
+const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+const BUSY = [429, 500, 503, 529];
+
+async function askGemini(parts) {
   const payload = JSON.stringify({
     systemInstruction: { parts: [{ text: METHODE }] },
     contents: [{ role: "user", parts }],
     generationConfig: { responseMimeType: "application/json" },
   });
-  // Gemini est parfois saturé : on réessaie, puis on passe au modèle de secours
   const main = process.env.GEMINI_MODEL || "gemini-flash-latest";
   const backup = process.env.GEMINI_FALLBACK || "gemini-flash-lite-latest";
-  const plan = [[main, 3], ...(backup !== main ? [[backup, 2]] : [])];
-  let last = "Erreur Gemini";
+  const plan = [[main, 2], ...(backup !== main ? [[backup, 2]] : [])];
+  let last = "erreur";
   for (const [model, tries] of plan) {
     for (let i = 0; i < tries; i++) {
-      try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-goog-api-key": (process.env.GEMINI_API_KEY || "").trim() },
-          body: payload,
-        });
-        const data = await r.json().catch(() => ({}));
-        if (r.ok) {
-          const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
-          return res.status(200).json(extractJson(text));
-        }
-        last = data?.error?.message || `Erreur Gemini (${r.status})`;
-        if (![429, 500, 503, 529].includes(r.status)) return res.status(500).json({ error: last });
-      } catch (e) {
-        last = e.message;
-      }
-      await new Promise((ok) => setTimeout(ok, 1500 * (i + 1)));
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": (process.env.GEMINI_API_KEY || "").trim() },
+        body: payload,
+      }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: e.message } }) }));
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) return (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+      last = data?.error?.message || `erreur ${r.status}`;
+      if (r.status && !BUSY.includes(r.status)) { const e = new Error(last); e.fatal = true; throw e; }
+      await wait(1500 * (i + 1));
     }
   }
-  return res.status(503).json({ error: "Gemini est très demandé en ce moment. Réessaie dans quelques minutes. (" + last + ")" });
-};
+  throw new Error(last);
+}
+
+async function askClaude(parts) {
+  // Même contenu que pour Gemini, converti au format Claude
+  const content = parts.map((p) => p.inlineData
+    ? { type: "image", source: { type: "base64", media_type: p.inlineData.mimeType, data: p.inlineData.data } }
+    : { type: "text", text: p.text });
+  const body = JSON.stringify({
+    model: process.env.CLAUDE_MODEL || "claude-sonnet-5-5",
+    max_tokens: 16000,
+    system: METHODE,
+    messages: [{ role: "user", content }],
+  });
+  let last = "erreur";
+  for (let i = 0; i < 3; i++) {
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": (process.env.ANTHROPIC_API_KEY || "").trim(),
+        "anthropic-version": "2023-06-01",
+      },
+      body,
+    }).catch((e) => ({ ok: false, status: 0, json: async () => ({ error: { message: e.message } }) }));
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) return (data.content || []).map((b) => b.text || "").join("");
+    last = data?.error?.message || `erreur ${r.status}`;
+    if (r.status && !BUSY.includes(r.status)) { const e = new Error(last); e.fatal = true; throw e; }
+    await wait(2000 * (i + 1));
+  }
+  throw new Error(last);
+}
 
 module.exports.extractJson = extractJson;
