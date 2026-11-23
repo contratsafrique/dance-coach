@@ -63,24 +63,38 @@ Utilise l'enchaînement des images pour comprendre les mouvements entre deux com
   }
   parts.push({ text: FORMAT });
 
-  try {
-    const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: METHODE }] },
-        contents: [{ role: "user", parts }],
-        generationConfig: { responseMimeType: "application/json" },
-      }),
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data?.error?.message || `Erreur Gemini (${r.status})`);
-    const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
-    return res.status(200).json(extractJson(text));
-  } catch (e) {
-    return res.status(500).json({ error: e.message });
+  const payload = JSON.stringify({
+    systemInstruction: { parts: [{ text: METHODE }] },
+    contents: [{ role: "user", parts }],
+    generationConfig: { responseMimeType: "application/json" },
+  });
+  // Gemini est parfois saturé : on réessaie, puis on passe au modèle de secours
+  const main = process.env.GEMINI_MODEL || "gemini-flash-latest";
+  const backup = process.env.GEMINI_FALLBACK || "gemini-flash-lite-latest";
+  const plan = [[main, 3], ...(backup !== main ? [[backup, 2]] : [])];
+  let last = "Erreur Gemini";
+  for (const [model, tries] of plan) {
+    for (let i = 0; i < tries; i++) {
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-goog-api-key": (process.env.GEMINI_API_KEY || "").trim() },
+          body: payload,
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok) {
+          const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("");
+          return res.status(200).json(extractJson(text));
+        }
+        last = data?.error?.message || `Erreur Gemini (${r.status})`;
+        if (![429, 500, 503, 529].includes(r.status)) return res.status(500).json({ error: last });
+      } catch (e) {
+        last = e.message;
+      }
+      await new Promise((ok) => setTimeout(ok, 1500 * (i + 1)));
+    }
   }
+  return res.status(503).json({ error: "Gemini est très demandé en ce moment. Réessaie dans quelques minutes. (" + last + ")" });
 };
 
 module.exports.extractJson = extractJson;
