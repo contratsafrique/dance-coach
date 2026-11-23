@@ -42,6 +42,7 @@
   .panel{background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
   .panel[hidden]{display:none}
   .vwrap{position:relative}
+  .pcap:empty{display:none}
   .live{background:rgba(212,167,44,.12);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px}
   .badge{position:absolute;top:10px;right:10px;min-width:64px;height:64px;padding:0 10px;border-radius:12px;background:rgba(0,0,0,.65);color:#fff;font-size:44px;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:none}
   .badge.one{background:rgba(212,167,44,.95);color:#000}
@@ -768,14 +769,34 @@ async function loadMainVideo(){
   }
   $("#cap1").textContent = t("err") + "Vidéo illisible";
 }
+// Recadrage fixe pour tout le passage : bande du haut du corps et bande des pieds, sur toute la largeur
+function computeBands(){
+  const ys = idx => {
+    const v = [];
+    for (const f of S.frames) for (const p of f.poses.slice(0, 2)) for (const i of idx){ const q = p[i]; if (q && q[2] > 0.3) v.push(q[1]); }
+    v.sort((a, b) => a - b);
+    return v.length ? [v[Math.floor(v.length * 0.05)], v[Math.floor(v.length * 0.95)]] : null;
+  };
+  const band = (r, padTop, padBot, def) => {
+    if (!r) return def;
+    const y0 = Math.max(0, r[0] - padTop), y1 = Math.min(1, r[1] + padBot);
+    return y1 - y0 > 0.12 ? { x: 0, y: y0, w: 1, h: y1 - y0 } : def;
+  };
+  S.band3 = band(ys([11, 12, 13, 14, 15, 16, 23, 24]), 0.06, 0.04, { x:0, y:0.15, w:1, h:0.45 }); // épaules → hanches
+  S.band4 = band(ys([25, 26, 27, 28, 29, 30, 31, 32]), 0.04, 0.05, { x:0, y:0.6, w:1, h:0.4 });  // genoux → pieds
+}
 function openStep3(){
   $("#step1").hidden = true; $("#step2").hidden = true; $("#step3").hidden = false;
   document.documentElement.style.setProperty("--ar", `${S.aspect}`);
   freePlayer(cal); freePlayer(cutV); freePlayer(WORK);
   loadMainVideo();
-  const base = 640;
-  c3.width = base; c3.height = Math.round(base / S.aspect);
-  c4.width = base; c4.height = Math.round(base / S.aspect);
+  computeBands();
+  const base = 720;
+  for (const [cv, box] of [[c3, S.band3], [c4, S.band4]]){
+    const r = (box.w * S.aspect) / box.h; // largeur / hauteur réelles du recadrage
+    cv.width = base; cv.height = Math.round(base / r);
+    cv.style.aspectRatio = `${r}`;
+  }
   setView(S.view);
   updateTips();
   window.scrollTo(0, 0);
@@ -927,21 +948,10 @@ function draw(){
     if (bd.textContent !== txt){ bd.textContent = txt; bd.classList.toggle("one", n === 1); }
   }
 
-  // Fenêtre 3 : haut du corps (zoom sur la vraie vidéo, sans dessin)
-  {
-    const ctx = c3.getContext("2d"), W = c3.width, H = c3.height;
-    const pts = poses.slice(0, 2).flatMap(p => UPPER.map(i => p[i]));
-    const box = smoothBox("b3", boxOf(pts, 0.6, 1), { x:0, y:0, w:1, h:0.6 });
-    zoomDraw(ctx, box, W, H);
-    if (!isPause(n)) label(ctx, String(n), 14, 44, 34, "#fff", "rgba(0,0,0,.6)");
-  }
-
-  // Fenêtre 4 : les pieds (zoom sur la vraie vidéo, sans dessin)
-  {
-    const ctx = c4.getContext("2d"), W = c4.width, H = c4.height;
-    const pts = poses.slice(0, 2).flatMap(p => FEET.map(i => p[i]));
-    const box = smoothBox("b4", boxOf(pts, 0.8, 1), { x:0, y:0.5, w:0.5, h:0.5 });
-    zoomDraw(ctx, box, W, H);
+  // Fenêtres 3 et 4 : simple recadrage fixe de la vraie vidéo (pas de zoom qui bouge)
+  for (const [cv, box] of [[c3, S.band3], [c4, S.band4]]){
+    const ctx = cv.getContext("2d");
+    zoomDraw(ctx, box, cv.width, cv.height);
     if (!isPause(n)) label(ctx, String(n), 14, 44, 34, "#fff", "rgba(0,0,0,.6)");
   }
 
@@ -953,7 +963,6 @@ function draw(){
     $("#figTxt").textContent = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
     const none = `<span class="muted">${t("notAnalyzed")}</span>`;
     const esc = s => String(s || "").replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
-    $("#cap1").textContent = `${t("bar")} ${m}${isPause(n) ? "" : " · " + n}`;
     const fig = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
     const sh = isPause(n) ? n - 1 : n;
     $("#desc").innerHTML = (fig ? `<div class="fig">${esc(fig)}<small>${esc(t("bar"))} ${m} · ${sh}</small></div>` : "")
