@@ -41,6 +41,18 @@
   @media(max-width:700px){ .grid:not(.single){grid-template-columns:1fr 1fr;gap:6px} .pcap{font-size:12px} }
   .panel{background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
   .panel[hidden]{display:none}
+  .vwrap{position:relative}
+  .badge{position:absolute;top:10px;right:10px;min-width:64px;height:64px;padding:0 10px;border-radius:12px;background:rgba(0,0,0,.65);color:#fff;font-size:44px;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .badge.one{background:rgba(212,167,44,.95);color:#000}
+  .badge:empty{display:none}
+  .speed{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel);border-top:1px solid var(--line)}
+  .speed input{flex:1;accent-color:var(--gold);height:28px}
+  .speed b{min-width:52px;text-align:right;color:var(--gold);font-size:18px}
+  .desc{flex:1;background:var(--panel);padding:16px 18px;aspect-ratio:var(--ar,16/9);overflow:auto;display:flex;flex-direction:column;gap:14px}
+  .desc .fig{font-size:24px;font-weight:800;color:var(--gold);line-height:1.2}
+  .desc .fig small{color:var(--muted);font-size:16px;font-weight:600;margin-left:8px}
+  .desc .blk{font-size:19px;line-height:1.4}
+  .desc .blk b{display:block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
   .ptitle{font-size:12px;font-weight:600;color:var(--gold);padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
   .panel video,.panel canvas{width:100%;display:block;background:#000;aspect-ratio:var(--ar,16/9);object-fit:contain}
   .pcap{padding:8px 10px;font-size:14px;background:var(--panel);min-height:52px;border-top:1px solid var(--line)}
@@ -165,9 +177,6 @@
       <div class="seg" id="viewSeg">
         <button data-view="4" class="on" data-t="view4"></button><button data-view="1" data-t="view1"></button>
       </div>
-      <div class="seg" id="speedSeg">
-        <button data-speed="0.5">0,5×</button><button data-speed="0.75">0,75×</button><button data-speed="1" class="on">1×</button>
-      </div>
     </div>
     <div class="tabs" id="tabs" hidden>
       <button data-p="1" class="on" data-t="w1s"></button>
@@ -178,13 +187,21 @@
     <div class="grid" id="grid">
       <div class="panel" data-p="1">
         <div class="ptitle" data-t="w1"></div>
-        <video id="v" playsinline controls></video>
+        <div class="vwrap">
+          <video id="v" playsinline controls></video>
+          <div class="badge" id="badge"></div>
+        </div>
+        <div class="speed">
+          <span>🐢</span>
+          <input type="range" id="speedRange" min="0.25" max="1" step="0.05" value="1" />
+          <span>🐇</span>
+          <b id="speedTxt">1×</b>
+        </div>
         <div class="pcap muted" id="cap1"></div>
       </div>
       <div class="panel" data-p="2">
         <div class="ptitle" data-t="w2"></div>
-        <canvas id="c2"></canvas>
-        <div class="pcap" id="cap2"></div>
+        <div class="desc" id="desc"></div>
       </div>
       <div class="panel" data-p="3">
         <div class="ptitle" data-t="w3"></div>
@@ -374,23 +391,23 @@ const T = {
     loadingModel:"Chargement du détecteur de mouvements…", poses:"Repérage des corps image par image…", audio:"Écoute de la musique…", noAudio:"Pas de musique détectée : tape le tempo à l'étape suivante.",
     s2:"2. Cale le rythme", s2tip:"L'appli a trouvé le tempo de la musique. Lance la vidéo et appuie sur « C'est le 1 ! » quand tu entends un 1 : c'est tout. Si le compte va 2 fois trop vite ou trop lentement, appuie sur ÷2 ou ×2. Si ce n'est toujours pas bon, tape 8 temps sur « Taper le tempo » en commençant sur un 1 : l'appli se cale ensuite toute seule sur la musique.", isone:"C'est le 1 !", tap:"Taper le tempo", tapNeed:"Encore quelques frappes…", tapOk:"Tempo calé sur tes frappes.", oneOk:"Le 1 est calé.",
     analyze:"Lancer le décryptage", frames:"Capture d'une image par compte…", ai:"L'IA décrypte les comptes…", tooLong:"Seules les 60 premières secondes sont analysées.",
-    view4:"4 fenêtres", view1:"1 fenêtre", w1:"1 · Vidéo originale", w2:"2 · Vidéo décryptée", w3:"3 · Haut du corps", w4:"4 · Les pieds", w1s:"Originale", w2s:"Décryptée", w3s:"Haut", w4s:"Pieds",
+    view4:"4 fenêtres", view1:"1 fenêtre", w1:"1 · Vidéo originale", w2:"2 · Les explications", w3:"3 · Haut du corps", w4:"4 · Les pieds", w1s:"Originale", w2s:"Explications", w3s:"Haut", w4s:"Pieds",
     bar:"Mesure", tips:"Conseils", good:"Ce qui est bien :", mistake:"À corriger :", exercise:"Exercice :", new:"Nouvelle vidéo", recal:"Recaler le rythme", otherPart:"Décrypter un autre passage",
-    feet:"Pieds", hands:"Mains", body:"Ce qui se passe", notAnalyzed:"Compte non analysé.", left:"gauche", right:"droit", dancerA:"Danseur A (gauche)", dancerB:"Danseur B (droite)", err:"Erreur : " },
+    feet:"Pieds", hands:"Mains et bras", body:"Ce qui se passe", notAnalyzed:"Compte non analysé.", left:"gauche", right:"droit", dancerA:"Danseur A (gauche)", dancerB:"Danseur B (droite)", err:"Erreur : " },
   en:{ pw:"Enter your password", s1:"1. Choose a video", s1tip:"Film from the front, feet visible, good light. If the video is longer than 60 seconds, choose the part to break down.", cutTip:"Choose the part to break down (60 seconds max).", cutStart:"Start:", cutLen:"Length:", cutPrev:"◀ 60 s before", cutNext:"60 s after ▶", cutPlay:"▶ Watch the part", cutSel:"Selected part:", role:"Explain for:", leader:"the leader", follower:"the follower", both:"both", dance:"Dance:", prepare:"Prepare the video",
     loadingModel:"Loading the movement detector…", poses:"Tracking bodies frame by frame…", audio:"Listening to the music…", noAudio:"No music detected: tap the tempo in the next step.",
     s2:"2. Set the rhythm", s2tip:"The app has found the tempo of the music. Play the video and press “It's the 1!” when you hear a 1: that's all. If the count is twice too fast or too slow, press ÷2 or ×2. If it's still wrong, tap 8 beats on “Tap tempo”, starting on a 1: the app then locks onto the music by itself.", isone:"It's the 1!", tap:"Tap tempo", tapNeed:"A few more taps…", tapOk:"Tempo set from your taps.", oneOk:"The 1 is set.",
     analyze:"Start the breakdown", frames:"Capturing one image per count…", ai:"The AI is breaking down the counts…", tooLong:"Only the first 60 seconds are analysed.",
-    view4:"4 windows", view1:"1 window", w1:"1 · Original video", w2:"2 · Annotated video", w3:"3 · Upper body", w4:"4 · Feet", w1s:"Original", w2s:"Annotated", w3s:"Upper", w4s:"Feet",
+    view4:"4 windows", view1:"1 window", w1:"1 · Original video", w2:"2 · Explanation", w3:"3 · Upper body", w4:"4 · Feet", w1s:"Original", w2s:"Explanation", w3s:"Upper", w4s:"Feet",
     bar:"Bar", tips:"Tips", good:"What's good:", mistake:"To fix:", exercise:"Exercise:", new:"New video", recal:"Reset the rhythm", otherPart:"Break down another part",
-    feet:"Feet", hands:"Hands", body:"What happens", notAnalyzed:"Count not analysed.", left:"left", right:"right", dancerA:"Dancer A (left)", dancerB:"Dancer B (right)", err:"Error: " },
+    feet:"Feet", hands:"Hands and arms", body:"What happens", notAnalyzed:"Count not analysed.", left:"left", right:"right", dancerA:"Dancer A (left)", dancerB:"Dancer B (right)", err:"Error: " },
   es:{ pw:"Escribe tu contraseña", s1:"1. Elige un vídeo", s1tip:"Graba de frente, pies visibles, buena luz. Si el vídeo dura más de 60 segundos, elige el fragmento que quieres analizar.", cutTip:"Elige el fragmento a analizar (60 segundos máximo).", cutStart:"Inicio:", cutLen:"Duración:", cutPrev:"◀ 60 s antes", cutNext:"60 s después ▶", cutPlay:"▶ Ver el fragmento", cutSel:"Fragmento elegido:", role:"Explicar para:", leader:"el líder", follower:"la seguidora", both:"los dos", dance:"Baile:", prepare:"Preparar el vídeo",
     loadingModel:"Cargando el detector de movimientos…", poses:"Detectando los cuerpos imagen por imagen…", audio:"Escuchando la música…", noAudio:"No se detecta música: marca el tempo en el siguiente paso.",
     s2:"2. Ajusta el ritmo", s2tip:"La app ha encontrado el tempo de la música. Reproduce el vídeo y pulsa «¡Es el 1!» cuando oigas un 1: eso es todo. Si la cuenta va el doble de rápida o de lenta, pulsa ÷2 o ×2. Si sigue sin estar bien, marca 8 tiempos en «Marcar el tempo» empezando en un 1: la app se ajusta sola a la música.", isone:"¡Es el 1!", tap:"Marcar el tempo", tapNeed:"Unos toques más…", tapOk:"Tempo ajustado con tus toques.", oneOk:"El 1 está ajustado.",
     analyze:"Iniciar el análisis", frames:"Capturando una imagen por tiempo…", ai:"La IA analiza los tiempos…", tooLong:"Solo se analizan los primeros 60 segundos.",
-    view4:"4 ventanas", view1:"1 ventana", w1:"1 · Vídeo original", w2:"2 · Vídeo analizado", w3:"3 · Parte superior", w4:"4 · Los pies", w1s:"Original", w2s:"Analizado", w3s:"Arriba", w4s:"Pies",
+    view4:"4 ventanas", view1:"1 ventana", w1:"1 · Vídeo original", w2:"2 · Explicación", w3:"3 · Parte superior", w4:"4 · Los pies", w1s:"Original", w2s:"Explicación", w3s:"Arriba", w4s:"Pies",
     bar:"Compás", tips:"Consejos", good:"Lo que está bien:", mistake:"A corregir:", exercise:"Ejercicio:", new:"Nuevo vídeo", recal:"Reajustar el ritmo", otherPart:"Analizar otro fragmento",
-    feet:"Pies", hands:"Manos", body:"Qué pasa", notAnalyzed:"Tiempo no analizado.", left:"izquierdo", right:"derecho", dancerA:"Bailarín A (izquierda)", dancerB:"Bailarín B (derecha)", err:"Error: " },
+    feet:"Pies", hands:"Manos y brazos", body:"Qué pasa", notAnalyzed:"Tiempo no analizado.", left:"izquierdo", right:"derecho", dancerA:"Bailarín A (izquierda)", dancerB:"Bailarín B (derecha)", err:"Error: " },
 };
 
 const $ = s => document.querySelector(s);
@@ -722,7 +739,7 @@ async function analyze(){
 $("#anaBtn").onclick = analyze;
 
 // ---------- Étape 3 : les 4 fenêtres ----------
-const v = $("#v"), c2 = $("#c2"), c3 = $("#c3"), c4 = $("#c4");
+const v = $("#v"), c3 = $("#c3"), c4 = $("#c4");
 keepInSegment(v);
 function openStep3(){
   $("#step1").hidden = true; $("#step2").hidden = true; $("#step3").hidden = false;
@@ -731,7 +748,6 @@ function openStep3(){
   v.src = S.url; v.muted = false;
   v.onloadedmetadata = () => { v.currentTime = S.start; };
   const base = 640;
-  c2.width = base; c2.height = Math.round(base / S.aspect);
   c3.width = base; c3.height = Math.round(base / S.aspect);
   c4.width = base; c4.height = Math.round(base / S.aspect);
   setView(S.view);
@@ -763,10 +779,11 @@ function setView(view){
 }
 document.querySelectorAll("#viewSeg button").forEach(b => b.onclick = () => setView(b.dataset.view));
 document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.panel = b.dataset.p; setView("1"); });
-document.querySelectorAll("#speedSeg button").forEach(b => b.onclick = () => {
-  v.playbackRate = Number(b.dataset.speed);
-  document.querySelectorAll("#speedSeg button").forEach(x => x.classList.toggle("on", x === b));
-});
+$("#speedRange").oninput = e => {
+  const r = Number(e.target.value);
+  v.playbackRate = r;
+  $("#speedTxt").textContent = `${String(r).replace(".", ",")}×`;
+};
 
 // Barre des comptes
 function currentK(){ return countIndexAt(v.currentTime, S.t1, S.bpm); }
@@ -852,20 +869,11 @@ function draw(){
   const e = entryForIndex(isPause(n) ? k - 1 : k);
   const full = { x:0, y:0, w:1, h:1 };
 
-  // Fenêtre 2 : vidéo décryptée
+  // Fenêtre 1 : le compte par-dessus la vidéo
   {
-    const ctx = c2.getContext("2d"), W = c2.width, H = c2.height;
-    ctx.drawImage(v, 0, 0, W, H);
-    const s = Math.round(H / 5);
-    if (!isPause(n)){
-      ctx.fillStyle = n === 1 ? "rgba(212,167,44,.9)" : "rgba(0,0,0,.65)";
-      ctx.fillRect(W - s - 12, 12, s, s);
-      ctx.fillStyle = n === 1 ? "#000" : "#fff"; ctx.font = `700 ${Math.round(s * 0.7)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText(String(n), W - s / 2 - 12, 12 + s / 2 + 2);
-      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-    }
-    const fig = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
-    if (fig) label(ctx, fig, 14, H - 16, Math.round(H / 16), "#fff", "rgba(0,0,0,.6)");
+    const bd = $("#badge");
+    const txt = isPause(n) ? "" : String(n);
+    if (bd.textContent !== txt){ bd.textContent = txt; bd.classList.toggle("one", n === 1); }
   }
 
   // Fenêtre 3 : haut du corps (zoom sur la vraie vidéo, sans dessin)
@@ -895,7 +903,11 @@ function draw(){
     const none = `<span class="muted">${t("notAnalyzed")}</span>`;
     const esc = s => String(s || "").replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
     $("#cap1").textContent = `${t("bar")} ${m}${isPause(n) ? "" : " · " + n}`;
-    $("#cap2").innerHTML = e ? `<b>${esc(t("body"))} :</b> ${esc(pick(e.corps, lang))}` : none;
+    const fig = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
+    const sh = isPause(n) ? n - 1 : n;
+    $("#desc").innerHTML = (fig ? `<div class="fig">${esc(fig)}<small>${esc(t("bar"))} ${m} · ${sh}</small></div>` : "")
+      + (e ? [["feet", e.pieds, "🦶"], ["hands", e.mains, "🙌"], ["body", e.corps, "🔄"]]
+          .map(([key, val, ico]) => `<div class="blk"><b>${ico} ${esc(t(key))}</b>${esc(pick(val, lang))}</div>`).join("") : none);
     $("#cap3").innerHTML = e ? `<b>${esc(t("hands"))} :</b> ${esc(pick(e.mains, lang))}` : none;
     $("#cap4").innerHTML = e ? `<b>${esc(t("feet"))} :</b> ${esc(pick(e.pieds, lang))}` : none;
   }
