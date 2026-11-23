@@ -13,24 +13,20 @@ Règles de la méthode, à respecter absolument :
 - Phrases courtes, simples, pour des élèves débutants à intermédiaires.
 - Si tu n'es pas sûr de ce que tu vois (danseurs cachés, image floue, pied hors champ), dis-le au lieu d'inventer.`;
 
-const FORMAT = `Réponds UNIQUEMENT avec un JSON valide, sans texte autour, de cette forme exacte :
+const FORMAT_TPL = `Réponds UNIQUEMENT avec un JSON valide, sans texte autour, de cette forme exacte :
 {
-  "figure_principale": {"fr": "...", "en": "...", "es": "..."},
+  "figure_principale": {"LG": "..."},
   "comptes": [
     {
       "i": 0,
-      "figure": {"fr": "...", "en": "...", "es": "..."},
-      "pieds":  {"fr": "...", "en": "...", "es": "..."},
-      "mains":  {"fr": "...", "en": "...", "es": "..."},
-      "corps":  {"fr": "...", "en": "...", "es": "..."}
+      "figure": {"LG": "..."},
+      "pieds":  {"LG": "..."},
+      "mains":  {"LG": "..."},
+      "corps":  {"LG": "..."}
     }
   ],
-  "conseils": {
-    "bien":     {"fr": "...", "en": "...", "es": "..."},
-    "erreur":   {"fr": "...", "en": "...", "es": "..."},
-    "exercice": {"fr": "...", "en": "...", "es": "..."}
-  },
-  "incertain": {"fr": "...", "en": "...", "es": "..."}
+
+  "incertain": {"LG": "..."}
 }
 - "comptes" contient exactement une entrée par image reçue, avec le même "i".
 - "pieds" : quel pied, quelle direction, transfert de poids, déplacement sur la piste (max 15 mots par danseur).
@@ -41,7 +37,12 @@ const FORMAT = `Réponds UNIQUEMENT avec un JSON valide, sans texte autour, de c
 - On ne t'envoie pas les comptes 4 et 8 (pauses) : le passage du 3 au 5 inclut la pause.
 - "figure" : nom de la figure en cours (pas de base, tour à droite, cross body, enchufla, etc.).
 - "incertain" : ce qui n'a pas pu être vu clairement, ou une chaîne vide dans les 3 langues si tout est clair.
-- Les conseils visent la personne du rôle demandé. Si le rôle est « les deux danseurs », chaque conseil contient une phrase pour le cavalier ET une phrase pour la cavalière (« Cavalier : … / Cavalière : … »).`;
+- Pas de conseils généraux : seulement la description des actions, compte par compte.`;
+const LANGS = { fr: "français", en: "anglais", es: "espagnol" };
+function formatFor(lg){
+  return FORMAT_TPL.replace(/"LG"/g, `"${lg}"`) + `\n- Écris tous les textes en ${LANGS[lg]}, uniquement dans la clé "${lg}".`;
+}
+
 
 function extractJson(text) {
   const t = String(text || "").replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
@@ -53,6 +54,16 @@ module.exports = async (req, res) => {
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée" });
   const body = readBody(req);
   if (!checkPassword(body, res)) return;
+
+  const lg = LANGS[body.lang] ? body.lang : "fr";
+
+  // Traduction d'une analyse déjà faite (texte seulement : rapide et peu coûteux)
+  if (body.action === "translate") {
+    const from = LANGS[body.from] ? body.from : "fr";
+    const data = body.data || {};
+    const prompt = `Traduis du ${LANGS[from]} vers le ${LANGS[lg]} ce JSON d'explications de danse (salsa). Garde exactement la même structure et les mêmes "i". Pour chaque objet de texte, remplace la clé "${from}" par la clé "${lg}" avec la traduction. Termes : cavalier = ${lg === "en" ? "leader" : lg === "es" ? "chico" : "cavalier"}, cavalière = ${lg === "en" ? "follower" : lg === "es" ? "chica" : "cavalière"}. Réponds UNIQUEMENT avec le JSON.\n\n` + JSON.stringify(data);
+    return runAI([{ text: prompt }], res);
+  }
 
   const { role, danse, comptes } = body;
   if (!Array.isArray(comptes) || comptes.length === 0) return res.status(400).json({ error: "Aucune image reçue" });
@@ -68,8 +79,12 @@ Utilise l'enchaînement des images pour comprendre les mouvements entre deux com
     parts.push({ text: `i=${c.i} · compte ${c.n} · mesure ${c.m} · t=${Number(c.t).toFixed(2)} s · points=${JSON.stringify(c.points || {})}` });
     if (c.image) parts.push({ inlineData: { mimeType: "image/jpeg", data: String(c.image).replace(/^data:image\/\w+;base64,/, "") } });
   }
-  parts.push({ text: FORMAT });
+  parts.push({ text: formatFor(lg) });
 
+  return runAI(parts, res);
+};
+
+async function runAI(parts, res) {
   // Fournisseur d'IA : Claude ou Gemini (variable AI_PROVIDER), l'autre sert de secours s'il a une clé
   const hasClaude = !!(process.env.ANTHROPIC_API_KEY || "").trim();
   const hasGemini = !!(process.env.GEMINI_API_KEY || "").trim();
@@ -88,7 +103,7 @@ Utilise l'enchaînement des images pour comprendre les mouvements entre deux com
     }
   }
   return res.status(503).json({ error: "L'IA est très demandée en ce moment. Réessaie dans quelques minutes. (" + errors.join(" | ") + ")" });
-};
+}
 
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
 const BUSY = [429, 500, 503, 529];

@@ -42,6 +42,7 @@
   .panel{background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
   .panel[hidden]{display:none}
   .vwrap{position:relative}
+  .live{background:rgba(212,167,44,.12);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px}
   .badge{position:absolute;top:10px;right:10px;min-width:64px;height:64px;padding:0 10px;border-radius:12px;background:rgba(0,0,0,.65);color:#fff;font-size:44px;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:none}
   .badge.one{background:rgba(212,167,44,.95);color:#000}
   .badge:empty{display:none}
@@ -173,6 +174,7 @@
 
   <!-- Étape 3 : les 4 fenêtres -->
   <section id="step3" hidden>
+    <div class="live" id="liveMsg" hidden></div>
     <div class="row" style="justify-content:space-between;margin-bottom:10px">
       <div class="seg" id="viewSeg">
         <button data-view="4" class="on" data-t="view4"></button><button data-view="1" data-t="view1"></button>
@@ -224,10 +226,6 @@
     <div class="barinfo"><span id="barTxt"></span><span id="figTxt"></span></div>
 
     <div class="card tips" style="margin-top:14px">
-      <h2 data-t="tips"></h2>
-      <div><b data-t="good"></b> <span id="tGood"></span></div>
-      <div><b data-t="mistake"></b> <span id="tBad"></span></div>
-      <div><b data-t="exercise"></b> <span id="tEx"></span></div>
       <div class="warn" id="tUnsure"></div>
       <div class="row" style="margin-top:12px">
         <button class="btn ghost" id="restart" data-t="new"></button>
@@ -377,7 +375,7 @@ function boxOf(points, margin, aspect){
   if (w / h > aspect) h = w / aspect; else w = h * aspect;
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
-function pick(obj, lang){ return obj ? (obj[lang] || obj.fr || "") : ""; }
+function pick(obj, lang){ return obj ? (obj[lang] || obj.fr || obj.en || obj.es || "") : ""; }
 // ==/PURE==
 </script>
 
@@ -390,21 +388,21 @@ const T = {
   fr:{ pw:"Entre ton mot de passe", s1:"1. Choisis une vidéo", s1tip:"Filme de face, pieds visibles, bonne lumière. Si la vidéo dure plus de 60 secondes, choisis le passage à décrypter.", cutTip:"Choisis le passage à décrypter (60 secondes maximum).", cutStart:"Début :", cutLen:"Durée :", cutPrev:"◀ 60 s avant", cutNext:"60 s après ▶", cutPlay:"▶ Voir le passage", cutSel:"Passage choisi :", role:"Expliquer pour :", leader:"le cavalier", follower:"la cavalière", both:"les deux", dance:"Danse :", prepare:"Préparer la vidéo",
     loadingModel:"Chargement du détecteur de mouvements…", poses:"Repérage des corps image par image…", audio:"Écoute de la musique…", noAudio:"Pas de musique détectée : tape le tempo à l'étape suivante.",
     s2:"2. Cale le rythme", s2tip:"L'appli a trouvé le tempo de la musique. Lance la vidéo et appuie sur « C'est le 1 ! » quand tu entends un 1 : c'est tout. Si le compte va 2 fois trop vite ou trop lentement, appuie sur ÷2 ou ×2. Si ce n'est toujours pas bon, tape 8 temps sur « Taper le tempo » en commençant sur un 1 : l'appli se cale ensuite toute seule sur la musique.", isone:"C'est le 1 !", tap:"Taper le tempo", tapNeed:"Encore quelques frappes…", tapOk:"Tempo calé sur tes frappes.", oneOk:"Le 1 est calé.",
-    analyze:"Lancer le décryptage", frames:"Capture d'une image par compte…", ai:"L'IA décrypte les comptes…", tooLong:"Seules les 60 premières secondes sont analysées.",
+    analyze:"Lancer le décryptage", frames:"Capture d'une image par compte…", ai:"L'IA décrypte les comptes…", translating:"Traduction en cours…", tooLong:"Seules les 60 premières secondes sont analysées.",
     view4:"4 fenêtres", view1:"1 fenêtre", w1:"1 · Vidéo originale", w2:"2 · Les explications", w3:"3 · Haut du corps", w4:"4 · Les pieds", w1s:"Originale", w2s:"Explications", w3s:"Haut", w4s:"Pieds",
     bar:"Mesure", tips:"Conseils", good:"Ce qui est bien :", mistake:"À corriger :", exercise:"Exercice :", new:"Nouvelle vidéo", recal:"Recaler le rythme", otherPart:"Décrypter un autre passage",
     feet:"Pieds", hands:"Mains et bras", body:"Ce qui se passe", notAnalyzed:"Compte non analysé.", left:"gauche", right:"droit", dancerA:"Danseur A (gauche)", dancerB:"Danseur B (droite)", err:"Erreur : ", partial:"L'IA était saturée : quelques comptes n'ont pas été analysés (« Compte non analysé »). Relance le décryptage plus tard pour les avoir." },
   en:{ pw:"Enter your password", s1:"1. Choose a video", s1tip:"Film from the front, feet visible, good light. If the video is longer than 60 seconds, choose the part to break down.", cutTip:"Choose the part to break down (60 seconds max).", cutStart:"Start:", cutLen:"Length:", cutPrev:"◀ 60 s before", cutNext:"60 s after ▶", cutPlay:"▶ Watch the part", cutSel:"Selected part:", role:"Explain for:", leader:"the leader", follower:"the follower", both:"both", dance:"Dance:", prepare:"Prepare the video",
     loadingModel:"Loading the movement detector…", poses:"Tracking bodies frame by frame…", audio:"Listening to the music…", noAudio:"No music detected: tap the tempo in the next step.",
     s2:"2. Set the rhythm", s2tip:"The app has found the tempo of the music. Play the video and press “It's the 1!” when you hear a 1: that's all. If the count is twice too fast or too slow, press ÷2 or ×2. If it's still wrong, tap 8 beats on “Tap tempo”, starting on a 1: the app then locks onto the music by itself.", isone:"It's the 1!", tap:"Tap tempo", tapNeed:"A few more taps…", tapOk:"Tempo set from your taps.", oneOk:"The 1 is set.",
-    analyze:"Start the breakdown", frames:"Capturing one image per count…", ai:"The AI is breaking down the counts…", tooLong:"Only the first 60 seconds are analysed.",
+    analyze:"Start the breakdown", frames:"Capturing one image per count…", ai:"The AI is breaking down the counts…", translating:"Translating…", tooLong:"Only the first 60 seconds are analysed.",
     view4:"4 windows", view1:"1 window", w1:"1 · Original video", w2:"2 · Explanation", w3:"3 · Upper body", w4:"4 · Feet", w1s:"Original", w2s:"Explanation", w3s:"Upper", w4s:"Feet",
     bar:"Bar", tips:"Tips", good:"What's good:", mistake:"To fix:", exercise:"Exercise:", new:"New video", recal:"Reset the rhythm", otherPart:"Break down another part",
     feet:"Feet", hands:"Hands and arms", body:"What happens", notAnalyzed:"Count not analysed.", left:"left", right:"right", dancerA:"Dancer A (left)", dancerB:"Dancer B (right)", err:"Error: ", partial:"The AI was overloaded: a few counts were not analysed (“Count not analysed”). Run the analysis again later to get them." },
   es:{ pw:"Escribe tu contraseña", s1:"1. Elige un vídeo", s1tip:"Graba de frente, pies visibles, buena luz. Si el vídeo dura más de 60 segundos, elige el fragmento que quieres analizar.", cutTip:"Elige el fragmento a analizar (60 segundos máximo).", cutStart:"Inicio:", cutLen:"Duración:", cutPrev:"◀ 60 s antes", cutNext:"60 s después ▶", cutPlay:"▶ Ver el fragmento", cutSel:"Fragmento elegido:", role:"Explicar para:", leader:"el líder", follower:"la seguidora", both:"los dos", dance:"Baile:", prepare:"Preparar el vídeo",
     loadingModel:"Cargando el detector de movimientos…", poses:"Detectando los cuerpos imagen por imagen…", audio:"Escuchando la música…", noAudio:"No se detecta música: marca el tempo en el siguiente paso.",
     s2:"2. Ajusta el ritmo", s2tip:"La app ha encontrado el tempo de la música. Reproduce el vídeo y pulsa «¡Es el 1!» cuando oigas un 1: eso es todo. Si la cuenta va el doble de rápida o de lenta, pulsa ÷2 o ×2. Si sigue sin estar bien, marca 8 tiempos en «Marcar el tempo» empezando en un 1: la app se ajusta sola a la música.", isone:"¡Es el 1!", tap:"Marcar el tempo", tapNeed:"Unos toques más…", tapOk:"Tempo ajustado con tus toques.", oneOk:"El 1 está ajustado.",
-    analyze:"Iniciar el análisis", frames:"Capturando una imagen por tiempo…", ai:"La IA analiza los tiempos…", tooLong:"Solo se analizan los primeros 60 segundos.",
+    analyze:"Iniciar el análisis", frames:"Capturando una imagen por tiempo…", ai:"La IA analiza los tiempos…", translating:"Traduciendo…", tooLong:"Solo se analizan los primeros 60 segundos.",
     view4:"4 ventanas", view1:"1 ventana", w1:"1 · Vídeo original", w2:"2 · Explicación", w3:"3 · Parte superior", w4:"4 · Los pies", w1s:"Original", w2s:"Explicación", w3s:"Arriba", w4s:"Pies",
     bar:"Compás", tips:"Consejos", good:"Lo que está bien:", mistake:"A corregir:", exercise:"Ejercicio:", new:"Nuevo vídeo", recal:"Reajustar el ritmo", otherPart:"Analizar otro fragmento",
     feet:"Pies", hands:"Manos y brazos", body:"Qué pasa", notAnalyzed:"Tiempo no analizado.", left:"izquierdo", right:"derecho", dancerA:"Bailarín A (izquierda)", dancerB:"Bailarín B (derecha)", err:"Error: ", partial:"La IA estaba saturada: algunos tiempos no se analizaron («Tiempo no analizado»). Vuelve a lanzar el análisis más tarde." },
@@ -425,7 +423,7 @@ function applyLang(){
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-t]").forEach(el => el.textContent = t(el.dataset.t));
   document.querySelectorAll("#langSeg button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
-  if (S.analysis) updateTips();
+  if (S.analysis){ updateTips(); if (!S.langs?.[lang]) translateTo(lang); }
   if (S.total) updateCut();
 }
 document.querySelectorAll("#langSeg button").forEach(b => b.onclick = () => { lang = b.dataset.lang; store.set("dd_lang", lang); applyLang(); });
@@ -684,58 +682,66 @@ async function analyze(){
       comptes.push({ i, n: c.n, m: c.m, t: +c.t.toFixed(2), points: pointsAt(c.t), image: cv.toDataURL("image/jpeg", 0.6) });
       bar.value = 0.3 * (i + 1) / S.list.length;
     }
-    // Envoi par petits paquets de 16 comptes (2 mesures), 3 à la fois : plus rapide et plus fiable
+    // Envoi par petits paquets de 16 comptes (2 mesures), 2 à la fois.
+    // Les fenêtres s'ouvrent dès le premier paquet prêt ; la suite arrive pendant qu'on regarde.
     const CHUNK = 16, PAR = 2, parts = [];
     for (let i = 0; i < comptes.length; i += CHUNK) parts.push(comptes.slice(i, i + CHUNK));
-    const results = new Array(parts.length), failed = [];
+    const failed = [];
     const t0 = Date.now();
-    let done = 0;
+    let done = 0, opened = false;
+    const src = lang;
+    S.analysis = { figure_principale:null, comptes:[], incertain:null };
+    S.langs = { [src]: true }; S.srcLang = src; S.busy = true;
+    const live = $("#liveMsg");
     const show = (extra = "") => {
       const sec = Math.round((Date.now() - t0) / 1000);
-      msg.textContent = `${t("ai")} ${done}/${parts.length} · ${sec} s${extra}`;
+      const txt = `${t("ai")} ${done}/${parts.length} · ${sec} s${extra}`;
+      msg.textContent = txt;
+      if (opened){ live.hidden = done >= parts.length; live.textContent = "⏳ " + txt; }
     };
     const tick = setInterval(() => show(), 1000);
+    function mergePart(data, offset){
+      const A = S.analysis;
+      A.figure_principale = A.figure_principale || data.figure_principale;
+      if (data.incertain && Object.values(data.incertain).some(Boolean)) A.incertain = A.incertain || data.incertain;
+      (data.comptes || []).forEach((c, j) => A.comptes.push({ ...c, i: (Number.isInteger(c.i) ? c.i : j) + offset }));
+      lastK = null;
+    }
     async function sendPart(pi){
       const offset = pi * CHUNK;
-      const req = JSON.stringify({ password, role: $("#role").value, danse: $("#danse").value,
+      const req = JSON.stringify({ password, lang: src, role: $("#role").value, danse: $("#danse").value,
         comptes: parts[pi].map(c => ({ ...c, i: c.i - offset })) });
       let r, data;
       for (let a = 0; a < 3; a++){
         if (a) { show(` · ↻ ${a + 1}/3`); await new Promise(ok => setTimeout(ok, 6000 * a)); }
         const ctl = new AbortController();
-        const kill = setTimeout(() => ctl.abort(), 150000); // jamais plus de 2 min 30 par paquet
+        const kill = setTimeout(() => ctl.abort(), 150000);
         r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" }, body: req, signal: ctl.signal }).catch(() => null);
         clearTimeout(kill);
         data = r ? await r.json().catch(() => ({ error:`Erreur ${r.status}` })) : { error:"Pas de réponse (connexion ou délai dépassé)" };
         if (r && (r.ok || ![500, 502, 503, 504].includes(r.status))) break;
       }
-      if (r && r.status === 401){ store.set("dd_pw", ""); password = ""; $("#login").hidden = false; }
-      if (r && r.status === 401) throw new Error(data.error || "401");
-      if (!r || !r.ok){ failed.push(data.error || `Erreur ${r ? r.status : ""}`); done++; bar.value = 0.3 + 0.7 * done / parts.length; show(); return; }
-      results[pi] = { data, offset };
-      done++; bar.value = 0.3 + 0.7 * done / parts.length; show();
+      if (r && r.status === 401){ store.set("dd_pw", ""); password = ""; $("#login").hidden = false; throw new Error(data.error || "401"); }
+      done++; bar.value = 0.3 + 0.7 * done / parts.length;
+      if (!r || !r.ok){ failed.push(data.error || `Erreur ${r ? r.status : ""}`); show(); return; }
+      mergePart(data, offset);
+      if (!opened){ opened = true; bar.value = 1; openStep3(); }
+      show();
     }
     show();
     try{
       let next = 0;
       const worker = async () => { while (next < parts.length){ const pi = next++; await sendPart(pi); } };
       await Promise.all(Array.from({ length: Math.min(PAR, parts.length) }, worker));
-    } finally { clearInterval(tick); }
-    const merged = { figure_principale:null, comptes:[], conseils:null, incertain:null };
-    if (failed.length === parts.length) throw new Error(failed[0]);
-    for (const { data, offset } of results.filter(Boolean)){
-      merged.figure_principale = merged.figure_principale || data.figure_principale;
-      merged.conseils = merged.conseils || data.conseils;
-      if (data.incertain && Object.values(data.incertain).some(Boolean)) merged.incertain = merged.incertain || data.incertain;
-      (data.comptes || []).forEach((c, j) => merged.comptes.push({ ...c, i: (Number.isInteger(c.i) ? c.i : j) + offset }));
-    }
-    S.analysis = merged;
-    bar.value = 1;
-    openStep3();
+    } finally { clearInterval(tick); S.busy = false; live.hidden = true; }
+    if (!opened) throw new Error(failed[0] || "Erreur");
+    S.analysis.comptes.sort((x, y) => x.i - y.i);
+    updateTips();
     if (failed.length){
       const w = $("#tUnsure");
       w.textContent = `⚠️ ${t("partial")}` + (w.textContent ? " " + w.textContent : "");
     }
+    if (lang !== S.srcLang) translateTo(lang);
   }catch(e){
     msg.textContent = t("err") + e.message;
     if (!cal.getAttribute("src")){ cal.addEventListener("loadeddata", () => { cal.currentTime = S.start; }, { once:true }); cal.src = S.url; }
@@ -747,12 +753,26 @@ $("#anaBtn").onclick = analyze;
 // ---------- Étape 3 : les 4 fenêtres ----------
 const v = $("#v"), c3 = $("#c3"), c4 = $("#c4");
 keepInSegment(v);
+// Le téléphone libère ses lecteurs vidéo avec un peu de retard : on réessaie si la vidéo refuse de se charger
+async function loadMainVideo(){
+  for (let a = 0; a < 5; a++){
+    if (a){ freePlayer(v); await new Promise(ok => setTimeout(ok, 600 * a)); }
+    else await new Promise(ok => setTimeout(ok, 250));
+    try{
+      await loadOnce(v, S.url);
+      v.muted = false;
+      v.playbackRate = Number($("#speedRange").value) || 1;
+      if (v.currentTime < S.start || v.currentTime > S.end) v.currentTime = S.start;
+      return;
+    }catch(e){ /* on réessaie */ }
+  }
+  $("#cap1").textContent = t("err") + "Vidéo illisible";
+}
 function openStep3(){
   $("#step1").hidden = true; $("#step2").hidden = true; $("#step3").hidden = false;
   document.documentElement.style.setProperty("--ar", `${S.aspect}`);
   freePlayer(cal); freePlayer(cutV); freePlayer(WORK);
-  v.src = S.url; v.muted = false;
-  v.onloadedmetadata = () => { v.currentTime = S.start; };
+  loadMainVideo();
   const base = 640;
   c3.width = base; c3.height = Math.round(base / S.aspect);
   c4.width = base; c4.height = Math.round(base / S.aspect);
@@ -766,11 +786,36 @@ function entryForIndex(k){
   if (pos < 0 || !S.analysis?.comptes) return null;
   return S.analysis.comptes.find(c => c.i === pos) || S.analysis.comptes[pos] || null;
 }
+// Traduire une analyse déjà faite dans une autre langue (seulement quand on la demande)
+async function translateTo(lg){
+  if (!S.analysis || S.langs?.[lg] || S.translating || S.busy) return;
+  S.translating = true;
+  const live = $("#liveMsg"); live.hidden = false; live.textContent = "⏳ " + t("translating");
+  const from = S.srcLang;
+  const strip = o => (o && o[from]) ? { [from]: o[from] } : null;
+  const A = S.analysis;
+  const data = { figure_principale: strip(A.figure_principale), incertain: strip(A.incertain),
+    comptes: A.comptes.map(c => ({ i: c.i, figure: strip(c.figure), pieds: strip(c.pieds), mains: strip(c.mains), corps: strip(c.corps) })) };
+  try{
+    const r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ password, action:"translate", from, lang: lg, data }) });
+    const out = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(out.error || r.status);
+    const put = (o, n) => { if (o && n && n[lg]) o[lg] = n[lg]; };
+    put(A.figure_principale, out.figure_principale); put(A.incertain, out.incertain);
+    (out.comptes || []).forEach(n => {
+      const c = A.comptes.find(x => x.i === n.i);
+      if (c) ["figure", "pieds", "mains", "corps"].forEach(k => put(c[k], n[k]));
+    });
+    S.langs[lg] = true;
+    live.hidden = true;
+  }catch(e){ live.textContent = t("err") + e.message; }
+  S.translating = false;
+  if (S.langs[lg] && lang !== lg) translateTo(lang);
+  lastK = null; updateTips();
+}
 function updateTips(){
   const a = S.analysis || {};
-  $("#tGood").textContent = pick(a.conseils?.bien, lang);
-  $("#tBad").textContent = pick(a.conseils?.erreur, lang);
-  $("#tEx").textContent = pick(a.conseils?.exercice, lang);
   $("#tUnsure").textContent = pick(a.incertain, lang);
   lastK = null;
 }
