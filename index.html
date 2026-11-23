@@ -263,48 +263,76 @@ function snapToGrid(t, t0, bpm){
   const b = beatLen(bpm);
   return t0 + Math.round((t - t0) / b) * b;
 }
-// Tempo à partir de frappes (instants en secondes)
+// Tempo à partir de frappes (instants en secondes) : droite des moindres carrés, plus juste que premier/dernier
 function tapTempo(taps){
   if (taps.length < 4) return null;
-  const span = taps[taps.length - 1] - taps[0];
-  return span > 0 ? Math.round(600 * (taps.length - 1) / span) / 10 : null;
+  const n = taps.length, mx = (n - 1) / 2, my = taps.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  taps.forEach((t, i) => { num += (i - mx) * (t - my); den += (i - mx) * (i - mx); });
+  const per = num / den;
+  return per > 0 ? Math.round(600 / per) / 10 : null;
 }
-// Estimation du tempo à partir du signal audio (mono)
-function estimateTempo(samples, sr, minBpm = 100, maxBpm = 230){
-  const hop = 512, win = 1024, env = [];
-  let prev = 0;
-  for (let i = 0; i + win < samples.length; i += hop){
-    let e = 0;
-    for (let j = 0; j < win; j += 2) e += samples[i + j] * samples[i + j];
-    e = Math.sqrt(e / (win / 2));
-    env.push(Math.max(0, e - prev));
-    prev = e;
+// Courbe des attaques de la musique (percussions) : 2 bandes, compression log, variations positives
+function onsetEnvelope(samples, sr){
+  const hop = Math.round(sr / 100), win = hop * 2, env = [];
+  let pLow = 0, pHigh = 0, lp = 0, prevX = 0;
+  const a = Math.exp(-2 * Math.PI * 200 / sr); // passe-bas 200 Hz (basse, tumbao, grosse caisse)
+  const low = new Float32Array(samples.length), high = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i++){
+    const x = samples[i];
+    lp = (1 - a) * x + a * lp; low[i] = lp;
+    high[i] = x - prevX; prevX = x; // passe-haut simple (cloche, claves, timbales)
   }
-  const fr = sr / hop;
+  for (let i = 0; i + win < samples.length; i += hop){
+    let el = 0, eh = 0;
+    for (let j = i; j < i + win; j++){ el += low[j] * low[j]; eh += high[j] * high[j]; }
+    const L = Math.log(1 + 1000 * el / win), H = Math.log(1 + 1000 * eh / win);
+    env.push(Math.max(0, L - pLow) + Math.max(0, H - pHigh));
+    pLow = L; pHigh = H;
+  }
+  // retirer la tendance locale
+  const out = env.map((v, i) => {
+    let m = 0, c = 0;
+    for (let k = Math.max(0, i - 20); k <= Math.min(env.length - 1, i + 20); k++){ m += env[k]; c++; }
+    return Math.max(0, v - m / c);
+  });
+  return { env: out, fr: sr / hop };
+}
+function envAt(env, pos){ const i = Math.floor(pos), f = pos - i; return (env[i] || 0) * (1 - f) + (env[i + 1] || 0) * f; }
+// Peigne de temps : trouve le tempo précis (et le décalage) autour d'un tempo approximatif
+function refineTempo(E, bpmGuess, range = 0.04){
+  const { env, fr } = E;
+  let best = -Infinity, bpm = bpmGuess, off = 0;
+  for (let b = bpmGuess * (1 - range); b <= bpmGuess * (1 + range); b += 0.05){
+    const per = 60 * fr / b;
+    for (let o = 0; o < per; o += 0.5){
+      let s = 0, c = 0;
+      for (let i = o; i < env.length - 1; i += per){ s += envAt(env, i); c++; }
+      s /= c || 1;
+      if (s > best){ best = s; bpm = b; off = o; }
+    }
+  }
+  return { bpm: Math.round(bpm * 100) / 100, t0: off / fr };
+}
+// Estimation du tempo de la musique, avec une préférence pour les tempos de salsa (≈ 150-220 BPM)
+function estimateTempo(samples, sr, prior = 190){
+  const E = onsetEnvelope(samples, sr);
+  const { env, fr } = E;
   const mean = env.reduce((a, b) => a + b, 0) / (env.length || 1);
   const x = env.map(v => v - mean);
-  const minLag = Math.floor(fr * 60 / maxBpm), maxLag = Math.ceil(fr * 60 / minBpm);
+  const ac = lag => { let s = 0; for (let i = 0; i + lag < x.length; i++) s += x[i] * x[i + lag]; return s / (x.length - lag); };
+  const minLag = Math.floor(fr * 60 / 240), maxLag = Math.ceil(fr * 60 / 70);
+  const A = []; for (let l = 0; l <= 2 * maxLag + 2; l++) A[l] = l >= minLag ? ac(l) : 0;
   let bestLag = 0, best = -Infinity;
   for (let lag = minLag; lag <= maxLag; lag++){
-    let s = 0;
-    for (let i = 0; i + lag < x.length; i++) s += x[i] * x[i + lag];
-    s /= (x.length - lag);
+    const bpm = 60 * fr / lag;
+    const w = Math.exp(-0.5 * Math.pow(Math.log2(bpm / prior) / 0.25, 2));
+    const s = A[lag] * w;
     if (s > best){ best = s; bestLag = lag; }
   }
   if (!bestLag) return null;
-  // affinage fin : peigne de temps (tempo au 0,1 BPM près + phase)
-  const at = pos => { const i = Math.floor(pos), f = pos - i; return (env[i] || 0) * (1 - f) + (env[i + 1] || 0) * f; };
-  const coarse = 60 * fr / bestLag;
-  let bpm = coarse, bestOff = 0, bestS = -Infinity;
-  for (let b = coarse - 5; b <= coarse + 5; b += 0.1){
-    const per = 60 * fr / b;
-    for (let off = 0; off < per; off += 0.25){
-      let s = 0;
-      for (let i = off; i < env.length - 1; i += per) s += at(i);
-      if (s > bestS){ bestS = s; bpm = b; bestOff = off; }
-    }
-  }
-  return { bpm: Math.round(bpm * 10) / 10, t0: bestOff / fr };
+  const r = refineTempo(E, 60 * fr / bestLag, 0.04);
+  return { bpm: r.bpm, t0: r.t0, E };
 }
 // Trier les danseurs de gauche à droite (A = gauche, B = droite)
 function sortPoses(poses){
@@ -343,21 +371,21 @@ const MAX_SECONDS = 60, FPS = 8;
 const T = {
   fr:{ pw:"Entre ton mot de passe", s1:"1. Choisis une vidéo", s1tip:"Filme de face, pieds visibles, bonne lumière. Si la vidéo dure plus de 60 secondes, choisis le passage à décrypter.", cutTip:"Choisis le passage à décrypter (60 secondes maximum).", cutStart:"Début :", cutLen:"Durée :", cutPrev:"◀ 60 s avant", cutNext:"60 s après ▶", cutPlay:"▶ Voir le passage", cutSel:"Passage choisi :", role:"Expliquer pour :", leader:"le cavalier", follower:"la cavalière", both:"les deux", dance:"Danse :", prepare:"Préparer la vidéo",
     loadingModel:"Chargement du détecteur de mouvements…", poses:"Repérage des corps image par image…", audio:"Écoute de la musique…", noAudio:"Pas de musique détectée : tape le tempo à l'étape suivante.",
-    s2:"2. Cale le rythme", s2tip:"Lance la vidéo. Quand tu entends un 1, appuie sur « C'est le 1 ! ». Si le compte part trop vite ou trop lentement, ajuste le BPM, ou tape en rythme sur « Taper le tempo » en commençant sur un 1 (8 frappes).", isone:"C'est le 1 !", tap:"Taper le tempo", tapNeed:"Encore quelques frappes…", tapOk:"Tempo calé sur tes frappes.", oneOk:"Le 1 est calé.",
+    s2:"2. Cale le rythme", s2tip:"L'appli a trouvé le tempo de la musique. Lance la vidéo et appuie sur « C'est le 1 ! » quand tu entends un 1 : c'est tout. Si le compte va 2 fois trop vite ou trop lentement, appuie sur ÷2 ou ×2. Si ce n'est toujours pas bon, tape 8 temps sur « Taper le tempo » en commençant sur un 1 : l'appli se cale ensuite toute seule sur la musique.", isone:"C'est le 1 !", tap:"Taper le tempo", tapNeed:"Encore quelques frappes…", tapOk:"Tempo calé sur tes frappes.", oneOk:"Le 1 est calé.",
     analyze:"Lancer le décryptage", frames:"Capture d'une image par compte…", ai:"L'IA décrypte les comptes…", tooLong:"Seules les 60 premières secondes sont analysées.",
     view4:"4 fenêtres", view1:"1 fenêtre", w1:"1 · Vidéo originale", w2:"2 · Vidéo décryptée", w3:"3 · Haut du corps", w4:"4 · Les pieds", w1s:"Originale", w2s:"Décryptée", w3s:"Haut", w4s:"Pieds",
     bar:"Mesure", tips:"Conseils", good:"Ce qui est bien :", mistake:"À corriger :", exercise:"Exercice :", new:"Nouvelle vidéo", recal:"Recaler le rythme", otherPart:"Décrypter un autre passage",
     feet:"Pieds", hands:"Mains", body:"Corps", notAnalyzed:"Compte non analysé.", left:"gauche", right:"droit", dancerA:"Danseur A (gauche)", dancerB:"Danseur B (droite)", err:"Erreur : " },
   en:{ pw:"Enter your password", s1:"1. Choose a video", s1tip:"Film from the front, feet visible, good light. If the video is longer than 60 seconds, choose the part to break down.", cutTip:"Choose the part to break down (60 seconds max).", cutStart:"Start:", cutLen:"Length:", cutPrev:"◀ 60 s before", cutNext:"60 s after ▶", cutPlay:"▶ Watch the part", cutSel:"Selected part:", role:"Explain for:", leader:"the leader", follower:"the follower", both:"both", dance:"Dance:", prepare:"Prepare the video",
     loadingModel:"Loading the movement detector…", poses:"Tracking bodies frame by frame…", audio:"Listening to the music…", noAudio:"No music detected: tap the tempo in the next step.",
-    s2:"2. Set the rhythm", s2tip:"Play the video. When you hear a 1, press “It's the 1!”. If the count is too fast or too slow, adjust the BPM, or tap in rhythm on “Tap tempo”, starting on a 1 (8 taps).", isone:"It's the 1!", tap:"Tap tempo", tapNeed:"A few more taps…", tapOk:"Tempo set from your taps.", oneOk:"The 1 is set.",
+    s2:"2. Set the rhythm", s2tip:"The app has found the tempo of the music. Play the video and press “It's the 1!” when you hear a 1: that's all. If the count is twice too fast or too slow, press ÷2 or ×2. If it's still wrong, tap 8 beats on “Tap tempo”, starting on a 1: the app then locks onto the music by itself.", isone:"It's the 1!", tap:"Tap tempo", tapNeed:"A few more taps…", tapOk:"Tempo set from your taps.", oneOk:"The 1 is set.",
     analyze:"Start the breakdown", frames:"Capturing one image per count…", ai:"The AI is breaking down the counts…", tooLong:"Only the first 60 seconds are analysed.",
     view4:"4 windows", view1:"1 window", w1:"1 · Original video", w2:"2 · Annotated video", w3:"3 · Upper body", w4:"4 · Feet", w1s:"Original", w2s:"Annotated", w3s:"Upper", w4s:"Feet",
     bar:"Bar", tips:"Tips", good:"What's good:", mistake:"To fix:", exercise:"Exercise:", new:"New video", recal:"Reset the rhythm", otherPart:"Break down another part",
     feet:"Feet", hands:"Hands", body:"Body", notAnalyzed:"Count not analysed.", left:"left", right:"right", dancerA:"Dancer A (left)", dancerB:"Dancer B (right)", err:"Error: " },
   es:{ pw:"Escribe tu contraseña", s1:"1. Elige un vídeo", s1tip:"Graba de frente, pies visibles, buena luz. Si el vídeo dura más de 60 segundos, elige el fragmento que quieres analizar.", cutTip:"Elige el fragmento a analizar (60 segundos máximo).", cutStart:"Inicio:", cutLen:"Duración:", cutPrev:"◀ 60 s antes", cutNext:"60 s después ▶", cutPlay:"▶ Ver el fragmento", cutSel:"Fragmento elegido:", role:"Explicar para:", leader:"el líder", follower:"la seguidora", both:"los dos", dance:"Baile:", prepare:"Preparar el vídeo",
     loadingModel:"Cargando el detector de movimientos…", poses:"Detectando los cuerpos imagen por imagen…", audio:"Escuchando la música…", noAudio:"No se detecta música: marca el tempo en el siguiente paso.",
-    s2:"2. Ajusta el ritmo", s2tip:"Reproduce el vídeo. Cuando oigas un 1, pulsa «¡Es el 1!». Si la cuenta va demasiado rápida o lenta, ajusta el BPM, o pulsa a ritmo en «Marcar el tempo» empezando en un 1 (8 toques).", isone:"¡Es el 1!", tap:"Marcar el tempo", tapNeed:"Unos toques más…", tapOk:"Tempo ajustado con tus toques.", oneOk:"El 1 está ajustado.",
+    s2:"2. Ajusta el ritmo", s2tip:"La app ha encontrado el tempo de la música. Reproduce el vídeo y pulsa «¡Es el 1!» cuando oigas un 1: eso es todo. Si la cuenta va el doble de rápida o de lenta, pulsa ÷2 o ×2. Si sigue sin estar bien, marca 8 tiempos en «Marcar el tempo» empezando en un 1: la app se ajusta sola a la música.", isone:"¡Es el 1!", tap:"Marcar el tempo", tapNeed:"Unos toques más…", tapOk:"Tempo ajustado con tus toques.", oneOk:"El 1 está ajustado.",
     analyze:"Iniciar el análisis", frames:"Capturando una imagen por tiempo…", ai:"La IA analiza los tiempos…", tooLong:"Solo se analizan los primeros 60 segundos.",
     view4:"4 ventanas", view1:"1 ventana", w1:"1 · Vídeo original", w2:"2 · Vídeo analizado", w3:"3 · Parte superior", w4:"4 · Los pies", w1s:"Original", w2s:"Analizado", w3s:"Arriba", w4s:"Pies",
     bar:"Compás", tips:"Consejos", good:"Lo que está bien:", mistake:"A corregir:", exercise:"Ejercicio:", new:"Nuevo vídeo", recal:"Reajustar el ritmo", otherPart:"Analizar otro fragmento",
@@ -509,7 +537,7 @@ async function prepare(){
       if (tempo) tempo.t0 += S.start;
       ctx.close && ctx.close();
     }catch{ tempo = null; }
-    if (tempo){ S.bpm = tempo.bpm; S.t0 = tempo.t0; } else { S.bpm = 180; S.t0 = S.start; }
+    if (tempo){ S.bpm = tempo.bpm; S.t0 = tempo.t0; S.E = tempo.E; S.Estart = S.start; } else { S.bpm = 180; S.t0 = S.start; S.E = null; }
     S.t1 = S.t0;
 
     // 2) Corps image par image
@@ -573,9 +601,11 @@ function calLoop(){
   };
   tick();
 }
+const LAT = 0.15; // temps de réaction + retard du son sur téléphone
+// Grille des temps de la musique (si elle a été analysée)
+function gridPhase(){ return S.E ? S.Estart + refineTempo(S.E, S.bpm, 0.004).t0 : S.t0; }
 $("#oneBtn").onclick = () => {
-  const lat = 0.08; // temps de réaction moyen
-  S.t1 = snapToGrid(cal.currentTime - lat, S.t0, S.bpm);
+  S.t1 = snapToGrid(cal.currentTime - LAT, gridPhase(), S.bpm);
   S.t0 = S.t1;
   $("#tapMsg").textContent = t("oneOk");
 };
@@ -583,16 +613,24 @@ $("#tapBtn").onclick = () => {
   const now = cal.currentTime;
   if (S.taps.length && (now < S.taps[S.taps.length - 1] || now - S.taps[S.taps.length - 1] > 2)) S.taps = [];
   S.taps.push(now);
-  const bpm = tapTempo(S.taps);
+  let bpm = tapTempo(S.taps);
   if (!bpm){ $("#tapMsg").textContent = t("tapNeed"); return; }
-  S.bpm = bpm; S.t1 = S.taps[0]; S.t0 = S.t1;
+  // Les frappes donnent le tempo approximatif ; la musique donne le tempo exact
+  let phase = S.taps[0] - LAT;
+  if (S.E){ const r = refineTempo(S.E, bpm, 0.06); bpm = r.bpm; phase = snapToGrid(S.taps[0] - LAT, S.Estart + r.t0, bpm); }
+  S.bpm = bpm; S.t1 = phase; S.t0 = S.t1;
   $("#bpmTxt").textContent = S.bpm;
   $("#tapMsg").textContent = t("tapOk");
 };
 document.querySelectorAll("[data-bpm]").forEach(b => b.onclick = () => {
   const v = b.dataset.bpm;
   S.bpm = v === "half" ? S.bpm / 2 : v === "double" ? S.bpm * 2 : S.bpm + Number(v);
-  S.bpm = Math.round(Math.min(Math.max(S.bpm, 60), 260) * 10) / 10;
+  S.bpm = Math.min(Math.max(S.bpm, 60), 260);
+  if (S.E && (v === "half" || v === "double")){
+    const r = refineTempo(S.E, S.bpm, 0.02);
+    S.bpm = r.bpm; S.t1 = snapToGrid(S.t1, S.Estart + r.t0, S.bpm); S.t0 = S.t1;
+  }
+  S.bpm = Math.round(S.bpm * 100) / 100;
   $("#bpmTxt").textContent = S.bpm;
 });
 
