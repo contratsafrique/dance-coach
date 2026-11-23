@@ -393,21 +393,21 @@ const T = {
     analyze:"Lancer le décryptage", frames:"Capture d'une image par compte…", ai:"L'IA décrypte les comptes…", tooLong:"Seules les 60 premières secondes sont analysées.",
     view4:"4 fenêtres", view1:"1 fenêtre", w1:"1 · Vidéo originale", w2:"2 · Les explications", w3:"3 · Haut du corps", w4:"4 · Les pieds", w1s:"Originale", w2s:"Explications", w3s:"Haut", w4s:"Pieds",
     bar:"Mesure", tips:"Conseils", good:"Ce qui est bien :", mistake:"À corriger :", exercise:"Exercice :", new:"Nouvelle vidéo", recal:"Recaler le rythme", otherPart:"Décrypter un autre passage",
-    feet:"Pieds", hands:"Mains et bras", body:"Ce qui se passe", notAnalyzed:"Compte non analysé.", left:"gauche", right:"droit", dancerA:"Danseur A (gauche)", dancerB:"Danseur B (droite)", err:"Erreur : " },
+    feet:"Pieds", hands:"Mains et bras", body:"Ce qui se passe", notAnalyzed:"Compte non analysé.", left:"gauche", right:"droit", dancerA:"Danseur A (gauche)", dancerB:"Danseur B (droite)", err:"Erreur : ", partial:"L'IA était saturée : quelques comptes n'ont pas été analysés (« Compte non analysé »). Relance le décryptage plus tard pour les avoir." },
   en:{ pw:"Enter your password", s1:"1. Choose a video", s1tip:"Film from the front, feet visible, good light. If the video is longer than 60 seconds, choose the part to break down.", cutTip:"Choose the part to break down (60 seconds max).", cutStart:"Start:", cutLen:"Length:", cutPrev:"◀ 60 s before", cutNext:"60 s after ▶", cutPlay:"▶ Watch the part", cutSel:"Selected part:", role:"Explain for:", leader:"the leader", follower:"the follower", both:"both", dance:"Dance:", prepare:"Prepare the video",
     loadingModel:"Loading the movement detector…", poses:"Tracking bodies frame by frame…", audio:"Listening to the music…", noAudio:"No music detected: tap the tempo in the next step.",
     s2:"2. Set the rhythm", s2tip:"The app has found the tempo of the music. Play the video and press “It's the 1!” when you hear a 1: that's all. If the count is twice too fast or too slow, press ÷2 or ×2. If it's still wrong, tap 8 beats on “Tap tempo”, starting on a 1: the app then locks onto the music by itself.", isone:"It's the 1!", tap:"Tap tempo", tapNeed:"A few more taps…", tapOk:"Tempo set from your taps.", oneOk:"The 1 is set.",
     analyze:"Start the breakdown", frames:"Capturing one image per count…", ai:"The AI is breaking down the counts…", tooLong:"Only the first 60 seconds are analysed.",
     view4:"4 windows", view1:"1 window", w1:"1 · Original video", w2:"2 · Explanation", w3:"3 · Upper body", w4:"4 · Feet", w1s:"Original", w2s:"Explanation", w3s:"Upper", w4s:"Feet",
     bar:"Bar", tips:"Tips", good:"What's good:", mistake:"To fix:", exercise:"Exercise:", new:"New video", recal:"Reset the rhythm", otherPart:"Break down another part",
-    feet:"Feet", hands:"Hands and arms", body:"What happens", notAnalyzed:"Count not analysed.", left:"left", right:"right", dancerA:"Dancer A (left)", dancerB:"Dancer B (right)", err:"Error: " },
+    feet:"Feet", hands:"Hands and arms", body:"What happens", notAnalyzed:"Count not analysed.", left:"left", right:"right", dancerA:"Dancer A (left)", dancerB:"Dancer B (right)", err:"Error: ", partial:"The AI was overloaded: a few counts were not analysed (“Count not analysed”). Run the analysis again later to get them." },
   es:{ pw:"Escribe tu contraseña", s1:"1. Elige un vídeo", s1tip:"Graba de frente, pies visibles, buena luz. Si el vídeo dura más de 60 segundos, elige el fragmento que quieres analizar.", cutTip:"Elige el fragmento a analizar (60 segundos máximo).", cutStart:"Inicio:", cutLen:"Duración:", cutPrev:"◀ 60 s antes", cutNext:"60 s después ▶", cutPlay:"▶ Ver el fragmento", cutSel:"Fragmento elegido:", role:"Explicar para:", leader:"el líder", follower:"la seguidora", both:"los dos", dance:"Baile:", prepare:"Preparar el vídeo",
     loadingModel:"Cargando el detector de movimientos…", poses:"Detectando los cuerpos imagen por imagen…", audio:"Escuchando la música…", noAudio:"No se detecta música: marca el tempo en el siguiente paso.",
     s2:"2. Ajusta el ritmo", s2tip:"La app ha encontrado el tempo de la música. Reproduce el vídeo y pulsa «¡Es el 1!» cuando oigas un 1: eso es todo. Si la cuenta va el doble de rápida o de lenta, pulsa ÷2 o ×2. Si sigue sin estar bien, marca 8 tiempos en «Marcar el tempo» empezando en un 1: la app se ajusta sola a la música.", isone:"¡Es el 1!", tap:"Marcar el tempo", tapNeed:"Unos toques más…", tapOk:"Tempo ajustado con tus toques.", oneOk:"El 1 está ajustado.",
     analyze:"Iniciar el análisis", frames:"Capturando una imagen por tiempo…", ai:"La IA analiza los tiempos…", tooLong:"Solo se analizan los primeros 60 segundos.",
     view4:"4 ventanas", view1:"1 ventana", w1:"1 · Vídeo original", w2:"2 · Explicación", w3:"3 · Parte superior", w4:"4 · Los pies", w1s:"Original", w2s:"Explicación", w3s:"Arriba", w4s:"Pies",
     bar:"Compás", tips:"Consejos", good:"Lo que está bien:", mistake:"A corregir:", exercise:"Ejercicio:", new:"Nuevo vídeo", recal:"Reajustar el ritmo", otherPart:"Analizar otro fragmento",
-    feet:"Pies", hands:"Manos y brazos", body:"Qué pasa", notAnalyzed:"Tiempo no analizado.", left:"izquierdo", right:"derecho", dancerA:"Bailarín A (izquierda)", dancerB:"Bailarín B (derecha)", err:"Error: " },
+    feet:"Pies", hands:"Manos y brazos", body:"Qué pasa", notAnalyzed:"Tiempo no analizado.", left:"izquierdo", right:"derecho", dancerA:"Bailarín A (izquierda)", dancerB:"Bailarín B (derecha)", err:"Error: ", partial:"La IA estaba saturada: algunos tiempos no se analizaron («Tiempo no analizado»). Vuelve a lanzar el análisis más tarde." },
 };
 
 const $ = s => document.querySelector(s);
@@ -685,9 +685,9 @@ async function analyze(){
       bar.value = 0.3 * (i + 1) / S.list.length;
     }
     // Envoi par petits paquets de 16 comptes (2 mesures), 3 à la fois : plus rapide et plus fiable
-    const CHUNK = 16, PAR = 3, parts = [];
+    const CHUNK = 16, PAR = 2, parts = [];
     for (let i = 0; i < comptes.length; i += CHUNK) parts.push(comptes.slice(i, i + CHUNK));
-    const results = new Array(parts.length);
+    const results = new Array(parts.length), failed = [];
     const t0 = Date.now();
     let done = 0;
     const show = (extra = "") => {
@@ -710,7 +710,8 @@ async function analyze(){
         if (r && (r.ok || ![500, 502, 503, 504].includes(r.status))) break;
       }
       if (r && r.status === 401){ store.set("dd_pw", ""); password = ""; $("#login").hidden = false; }
-      if (!r || !r.ok) throw new Error(data.error || `Erreur ${r ? r.status : ""}`);
+      if (r && r.status === 401) throw new Error(data.error || "401");
+      if (!r || !r.ok){ failed.push(data.error || `Erreur ${r ? r.status : ""}`); done++; bar.value = 0.3 + 0.7 * done / parts.length; show(); return; }
       results[pi] = { data, offset };
       done++; bar.value = 0.3 + 0.7 * done / parts.length; show();
     }
@@ -721,7 +722,8 @@ async function analyze(){
       await Promise.all(Array.from({ length: Math.min(PAR, parts.length) }, worker));
     } finally { clearInterval(tick); }
     const merged = { figure_principale:null, comptes:[], conseils:null, incertain:null };
-    for (const { data, offset } of results){
+    if (failed.length === parts.length) throw new Error(failed[0]);
+    for (const { data, offset } of results.filter(Boolean)){
       merged.figure_principale = merged.figure_principale || data.figure_principale;
       merged.conseils = merged.conseils || data.conseils;
       if (data.incertain && Object.values(data.incertain).some(Boolean)) merged.incertain = merged.incertain || data.incertain;
@@ -730,6 +732,10 @@ async function analyze(){
     S.analysis = merged;
     bar.value = 1;
     openStep3();
+    if (failed.length){
+      const w = $("#tUnsure");
+      w.textContent = `⚠️ ${t("partial")}` + (w.textContent ? " " + w.textContent : "");
+    }
   }catch(e){
     msg.textContent = t("err") + e.message;
     if (!cal.getAttribute("src")){ cal.addEventListener("loadeddata", () => { cal.currentTime = S.start; }, { once:true }); cal.src = S.url; }

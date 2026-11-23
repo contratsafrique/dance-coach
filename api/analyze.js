@@ -78,17 +78,16 @@ Utilise l'enchaînement des images pour comprendre les mouvements entre deux com
     .filter((p) => (p === "claude" ? hasClaude : hasGemini));
   if (!order.length) return res.status(500).json({ error: "Clé manquante : ajoute ANTHROPIC_API_KEY ou GEMINI_API_KEY dans Vercel." });
 
-  let last = "Erreur IA";
+  const errors = [];
   for (const provider of order) {
     try {
       const text = provider === "claude" ? await askClaude(parts) : await askGemini(parts);
       return res.status(200).json(extractJson(text));
     } catch (e) {
-      last = `${provider === "claude" ? "Claude" : "Gemini"} : ${e.message}`;
-      if (e.fatal && order.length === 1) break;
+      errors.push(`${provider === "claude" ? "Claude" : "Gemini"} : ${e.message}`);
     }
   }
-  return res.status(503).json({ error: "L'IA est très demandée en ce moment. Réessaie dans quelques minutes. (" + last + ")" });
+  return res.status(503).json({ error: "L'IA est très demandée en ce moment. Réessaie dans quelques minutes. (" + errors.join(" | ") + ")" });
 };
 
 const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -133,7 +132,7 @@ async function askClaude(parts) {
     messages: [{ role: "user", content }],
   });
   let last = "erreur";
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -147,7 +146,9 @@ async function askClaude(parts) {
     if (r.ok) return (data.content || []).map((b) => b.text || "").join("");
     last = data?.error?.message || `erreur ${r.status}`;
     if (r.status && !BUSY.includes(r.status)) { const e = new Error(last); e.fatal = true; throw e; }
-    await wait(2000 * (i + 1));
+    // limite de débit : on attend le temps demandé par Anthropic (30 s maximum)
+    const ra = Number(r.headers?.get?.("retry-after")) || 0;
+    await wait(Math.min(30000, Math.max(ra * 1000, 4000 * (i + 1))));
   }
   throw new Error(last);
 }
