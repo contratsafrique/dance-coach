@@ -200,8 +200,8 @@
 
     <div class="counts" id="counts">
       <button class="nav" id="prevBar">‹</button>
-      <button class="n" data-n="1">1</button><button class="n" data-n="2">2</button><button class="n" data-n="3">3</button><button class="n pause" data-n="4">4</button>
-      <button class="n" data-n="5">5</button><button class="n" data-n="6">6</button><button class="n" data-n="7">7</button><button class="n pause" data-n="8">8</button>
+      <button class="n" data-n="1">1</button><button class="n" data-n="2">2</button><button class="n" data-n="3">3</button>
+      <button class="n" data-n="5">5</button><button class="n" data-n="6">6</button><button class="n" data-n="7">7</button>
       <button class="nav" id="nextBar">›</button>
     </div>
     <div class="barinfo"><span id="barTxt"></span><span id="figTxt"></span></div>
@@ -232,6 +232,7 @@ const UPPER = [0,11,12,13,14,15,16];
 // Rythme : à partir du BPM et de l'instant d'un "1"
 function beatLen(bpm){ return 60 / bpm; }
 function countIndexAt(t, t1, bpm){ return Math.floor((t - t1) / beatLen(bpm) + 1e-6); }
+function isPause(n){ return n === 4 || n === 8; }
 function countNumber(k){ return ((k % 8) + 8) % 8 + 1; }
 function barNumber(k){ return Math.floor(k / 8) + 1; }
 function timeOfIndex(k, t1, bpm){ return t1 + k * beatLen(bpm); }
@@ -596,7 +597,7 @@ function calLoop(){
     const k = countIndexAt(cal.currentTime, S.t1, S.bpm);
     const n = countNumber(k);
     const el = $("#calCount");
-    el.textContent = n; el.classList.toggle("one", n === 1);
+    el.textContent = isPause(n) ? "" : n; el.classList.toggle("one", n === 1);
     calRaf = requestAnimationFrame(tick);
   };
   tick();
@@ -615,6 +616,8 @@ $("#tapBtn").onclick = () => {
   S.taps.push(now);
   let bpm = tapTempo(S.taps);
   if (!bpm){ $("#tapMsg").textContent = t("tapNeed"); return; }
+  // En salsa on compte chaque temps (≈ 150-220 BPM) : des frappes 2 fois trop lentes sont doublées
+  while (bpm < 125) bpm *= 2;
   // Les frappes donnent le tempo approximatif ; la musique donne le tempo exact
   let phase = S.taps[0] - LAT;
   if (S.E){ const r = refineTempo(S.E, bpm, 0.06); bpm = r.bpm; phase = snapToGrid(S.taps[0] - LAT, S.Estart + r.t0, bpm); }
@@ -650,7 +653,7 @@ async function analyze(){
   const msg = $("#anaMsg"), bar = $("#anaBar");
   $("#anaBox").hidden = false; $("#anaBtn").disabled = true;
   try{
-    S.list = countsToAnalyze(S.end, S.t1, S.bpm, 200, S.start);
+    S.list = countsToAnalyze(S.end, S.t1, S.bpm, 200, S.start).filter(c => !isPause(c.n)); // on ne compte pas 4 et 8
     msg.textContent = t("frames");
     const work = await getWork(S.url, [cutV, cal]);
     const W = 320, H = Math.round(W / S.aspect);
@@ -817,6 +820,22 @@ function drawFoot(ctx, x, y, isLeft, color, n, r){
   ctx.restore();
 }
 
+const FEET = [25, 26, 27, 28, 29, 30, 31, 32];
+// Cadre de zoom lissé (pas de tremblement) et toujours dans l'image
+const BOXES = {};
+function smoothBox(key, target, fallback){
+  const tgt = target || BOXES[key] || fallback;
+  const w = Math.min(1, tgt.w), h = Math.min(1, tgt.h);
+  const t2 = { w, h, x: Math.min(Math.max(tgt.x, 0), 1 - w), y: Math.min(Math.max(tgt.y, 0), 1 - h) };
+  const cur = BOXES[key];
+  BOXES[key] = cur ? { x: cur.x + (t2.x - cur.x) * 0.12, y: cur.y + (t2.y - cur.y) * 0.12, w: cur.w + (t2.w - cur.w) * 0.12, h: cur.h + (t2.h - cur.h) * 0.12 } : t2;
+  return BOXES[key];
+}
+function zoomDraw(ctx, box, W, H){
+  const vw = v.videoWidth, vh = v.videoHeight;
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(v, box.x * vw, box.y * vh, box.w * vw, box.h * vh, 0, 0, W, H);
+}
 let lastK = null, raf = 0;
 function drawLoop(){
   cancelAnimationFrame(raf);
@@ -830,88 +849,52 @@ function draw(){
   const n = countNumber(k), m = barNumber(k) - (S.list.length ? barNumber(S.list[0].k) : 1) + 1;
   const f = nearestFrame(S.frames, time);
   const poses = f ? f.poses : [];
-  const e = entryForIndex(k);
+  const e = entryForIndex(isPause(n) ? k - 1 : k);
   const full = { x:0, y:0, w:1, h:1 };
 
   // Fenêtre 2 : vidéo décryptée
   {
     const ctx = c2.getContext("2d"), W = c2.width, H = c2.height;
     ctx.drawImage(v, 0, 0, W, H);
-    poses.slice(0, 2).forEach((p, i) => drawSkeleton(ctx, p, COLORS[i], full, W, H));
     const s = Math.round(H / 5);
-    ctx.fillStyle = n === 1 ? "rgba(212,167,44,.9)" : "rgba(0,0,0,.65)";
-    ctx.fillRect(W - s - 12, 12, s, s);
-    ctx.fillStyle = n === 1 ? "#000" : "#fff"; ctx.font = `700 ${Math.round(s * 0.7)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(String(n), W - s / 2 - 12, 12 + s / 2 + 2);
-    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    if (!isPause(n)){
+      ctx.fillStyle = n === 1 ? "rgba(212,167,44,.9)" : "rgba(0,0,0,.65)";
+      ctx.fillRect(W - s - 12, 12, s, s);
+      ctx.fillStyle = n === 1 ? "#000" : "#fff"; ctx.font = `700 ${Math.round(s * 0.7)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(String(n), W - s / 2 - 12, 12 + s / 2 + 2);
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    }
     const fig = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
     if (fig) label(ctx, fig, 14, H - 16, Math.round(H / 16), "#fff", "rgba(0,0,0,.6)");
   }
 
-  // Fenêtre 3 : haut du corps
+  // Fenêtre 3 : haut du corps (zoom sur la vraie vidéo, sans dessin)
   {
     const ctx = c3.getContext("2d"), W = c3.width, H = c3.height;
-    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
     const pts = poses.slice(0, 2).flatMap(p => UPPER.map(i => p[i]));
-    const box = boxOf(pts, 0.5, W / H) || full;
-    const vw = v.videoWidth, vh = v.videoHeight;
-    ctx.drawImage(v, box.x * vw, box.y * vh, box.w * vw, box.h * vh, 0, 0, W, H);
-    poses.slice(0, 2).forEach((p, i) => {
-      const X = q => (q[0] - box.x) / box.w * W, Y = q => (q[1] - box.y) / box.h * H;
-      ctx.strokeStyle = COLORS[i]; ctx.lineWidth = 5; ctx.lineCap = "round";
-      for (const [a, b] of [[11,12],[11,13],[13,15],[12,14],[14,16]]){
-        const pa = p[a], pb = p[b]; if (!pa || !pb || pa[2] < 0.3 || pb[2] < 0.3) continue;
-        ctx.beginPath(); ctx.moveTo(X(pa), Y(pa)); ctx.lineTo(X(pb), Y(pb)); ctx.stroke();
-      }
-      ctx.fillStyle = COLORS[i];
-      for (const j of [15, 16]){ const q = p[j]; if (q && q[2] > 0.3){ ctx.beginPath(); ctx.arc(X(q), Y(q), 9, 0, 7); ctx.fill(); } }
-    });
-    label(ctx, String(n), 14, 44, 34, "#fff", "rgba(0,0,0,.6)");
+    const box = smoothBox("b3", boxOf(pts, 0.6, 1), { x:0, y:0, w:1, h:0.6 });
+    zoomDraw(ctx, box, W, H);
+    if (!isPause(n)) label(ctx, String(n), 14, 44, 34, "#fff", "rgba(0,0,0,.6)");
   }
 
-  // Fenêtre 4 : les pieds, vue du sol
+  // Fenêtre 4 : les pieds (zoom sur la vraie vidéo, sans dessin)
   {
-    const ctx = c4.getContext("2d"), W = c4.width, H = c4.height, R = S.ankleRange || { x0:0, x1:1, y0:0, y1:1 };
-    ctx.fillStyle = "#101014"; ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = "#24242b"; ctx.lineWidth = 1;
-    for (let i = 1; i < 8; i++){ ctx.beginPath(); ctx.moveTo(i * W / 8, 0); ctx.lineTo(i * W / 8, H); ctx.stroke(); }
-    for (let i = 1; i < 5; i++){ ctx.beginPath(); ctx.moveTo(0, i * H / 5); ctx.lineTo(W, i * H / 5); ctx.stroke(); }
-    const X = q => (q[0] - R.x0) / (R.x1 - R.x0) * W, Y = q => (q[1] - R.y0) / (R.y1 - R.y0) * H;
-    const start = k - (n - 1);
-    const r = Math.max(12, W / 40);
-    for (let j = 0; j < 8; j++){
-      const kk = start + j, nn = countNumber(kk);
-      if (kk > k) break;
-      const tt = timeOfIndex(kk, S.t1, S.bpm);
-      if (tt < 0) continue;
-      const ff = nearestFrame(S.frames, tt);
-      (ff?.poses || []).slice(0, 2).forEach((p, i) => {
-        const L = p[27], Rt = p[28];
-        ctx.globalAlpha = kk === k ? 1 : 0.45;
-        if (L && L[2] > 0.3) drawFoot(ctx, X(L), Y(L), true, COLORS[i], nn, r);
-        if (Rt && Rt[2] > 0.3) drawFoot(ctx, X(Rt), Y(Rt), false, COLORS[i], nn, r);
-        ctx.globalAlpha = 1;
-      });
-    }
-    poses.slice(0, 2).forEach((p, i) => {
-      for (const j of [27, 28]){ const q = p[j]; if (q && q[2] > 0.3){ ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(X(q), Y(q), 5, 0, 7); ctx.fill(); ctx.strokeStyle = COLORS[i]; ctx.lineWidth = 2; ctx.stroke(); } }
-    });
-    ctx.font = "600 15px sans-serif"; ctx.textAlign = "left";
-    ctx.fillStyle = COLORS[0]; ctx.fillText(t("dancerA"), 12, H - 34);
-    ctx.fillStyle = COLORS[1]; ctx.fillText(t("dancerB"), 12, H - 14);
-    ctx.fillStyle = "#9a978f"; ctx.textAlign = "right"; ctx.fillText(`○ ${t("left")}   ● ${t("right")}`, W - 12, H - 14);
-    ctx.textAlign = "left";
+    const ctx = c4.getContext("2d"), W = c4.width, H = c4.height;
+    const pts = poses.slice(0, 2).flatMap(p => FEET.map(i => p[i]));
+    const box = smoothBox("b4", boxOf(pts, 0.8, 1), { x:0, y:0.5, w:0.5, h:0.5 });
+    zoomDraw(ctx, box, W, H);
+    if (!isPause(n)) label(ctx, String(n), 14, 44, 34, "#fff", "rgba(0,0,0,.6)");
   }
 
   // Textes (seulement quand le compte change)
   if (k !== lastK){
     lastK = k;
     document.querySelectorAll("#counts .n").forEach(b => b.classList.toggle("on", Number(b.dataset.n) === n));
-    $("#barTxt").textContent = `${t("bar")} ${m} · ${n}/8 · ${S.bpm} BPM`;
+    $("#barTxt").textContent = `${t("bar")} ${m}${isPause(n) ? "" : " · " + n} · ${S.bpm} BPM`;
     $("#figTxt").textContent = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
     const none = `<span class="muted">${t("notAnalyzed")}</span>`;
     const esc = s => String(s || "").replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
-    $("#cap1").textContent = `${t("bar")} ${m} · ${n}`;
+    $("#cap1").textContent = `${t("bar")} ${m}${isPause(n) ? "" : " · " + n}`;
     $("#cap2").innerHTML = e ? `<b>${esc(t("body"))} :</b> ${esc(pick(e.corps, lang))}` : none;
     $("#cap3").innerHTML = e ? `<b>${esc(t("hands"))} :</b> ${esc(pick(e.mains, lang))}` : none;
     $("#cap4").innerHTML = e ? `<b>${esc(t("feet"))} :</b> ${esc(pick(e.pieds, lang))}` : none;
