@@ -1,981 +1,1035 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0d0d0f" />
-<title>Dance Coach</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+<meta name="theme-color" content="#1f1e1d" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
 <link rel="manifest" href="/manifest.json" />
 <link rel="icon" href="/icon-192.png" />
 <link rel="apple-touch-icon" href="/icon-192.png" />
+<title>D.IA.logue</title>
 <style>
   :root{
-    --bg:#0d0d0f; --panel:#17171b; --line:#2a2a31; --text:#f1efe9; --muted:#9a978f;
-    --red:#d7263d; --gold:#d4a72c; --a:#d4a72c; --b:#4fa3ff;
+    --claude:#d97757; --openai:#10a37f; --gemini:#4f8ff7; --perplexity:#20b8cd; --video:#e5484d; --music:#f5a524; --accent:#d4a72c;
+    --side-w:272px;
+  }
+  [data-theme="dark"]{
+    --bg:#1f1e1d; --side:#181817; --panel:#262624; --panel2:#2f2e2b; --line:#3a3835; --text:#ecebe6; --muted:#a19f98; --user:#34322f; --code:#151514;
+  }
+  [data-theme="light"]{
+    --bg:#faf9f5; --side:#f1efe7; --panel:#ffffff; --panel2:#f4f2ec; --line:#e2dfd5; --text:#1f1e1d; --muted:#6d6b64; --user:#ece9e0; --code:#f3f1ea;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-  header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  header h1{font-size:17px;margin:0;flex:1;letter-spacing:.3px}
-  header h1 span{color:var(--gold)}
-  .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-  .seg button{background:var(--panel);color:var(--muted);border:0;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
-  .seg button.on{background:var(--gold);color:#000;font-weight:600}
-  main{max-width:1200px;margin:0 auto;padding:14px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
-  .card h2{font-size:15px;margin:0 0 10px}
-  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-  .btn{background:var(--red);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
-  .btn.gold{background:var(--gold);color:#000}
-  .btn.ghost{background:none;border:1px solid var(--line);color:var(--text);font-weight:500}
-  .btn:disabled{opacity:.4}
-  .muted{color:var(--muted);font-size:13px}
-  progress{width:100%;height:8px;accent-color:var(--gold)}
-  input[type=file]{color:var(--muted);max-width:100%}
-  .big1{font-size:54px;font-weight:700;width:90px;height:90px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:#000;border:2px solid var(--line)}
-  .big1.one{border-color:var(--gold);color:var(--gold)}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit}
+  [hidden]{display:none !important}
 
-  /* Écran 4 fenêtres */
-  .grid{display:grid;gap:10px;grid-template-columns:1fr 1fr}
-  .grid.single{grid-template-columns:1fr}
-  @media(max-width:700px){ .grid:not(.single){grid-template-columns:1fr 1fr;gap:6px} .pcap{font-size:12px} }
-  .panel{background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;min-width:0}
-  .panel[hidden]{display:none}
-  .vwrap{position:relative}
-  .pcap:empty{display:none}
-  .live{background:rgba(212,167,44,.12);border:1px solid var(--gold);color:var(--gold);border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:14px}
-  .badge{position:absolute;top:10px;right:10px;min-width:64px;height:64px;padding:0 10px;border-radius:12px;background:rgba(0,0,0,.65);color:#fff;font-size:44px;font-weight:800;display:flex;align-items:center;justify-content:center;pointer-events:none}
-  .badge.one{background:rgba(212,167,44,.95);color:#000}
-  .badge:empty{display:none}
-  .speed{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel);border-top:1px solid var(--line)}
-  .speed input{flex:1;accent-color:var(--gold);height:28px}
-  .speed b{min-width:52px;text-align:right;color:var(--gold);font-size:18px}
-  .desc{flex:1;background:var(--panel);padding:16px 18px;aspect-ratio:var(--ar,16/9);overflow:auto;display:flex;flex-direction:column;gap:14px}
-  .desc .fig{font-size:24px;font-weight:800;color:var(--gold);line-height:1.2}
-  .desc .fig small{color:var(--muted);font-size:16px;font-weight:600;margin-left:8px}
-  .desc .blk{font-size:19px;line-height:1.4}
-  .desc .blk b{display:block;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
-  .ptitle{font-size:12px;font-weight:600;color:var(--gold);padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
-  .panel video,.panel canvas{width:100%;display:block;background:#000;aspect-ratio:var(--ar,16/9);object-fit:contain}
-  .pcap{padding:8px 10px;font-size:14px;background:var(--panel);min-height:52px;border-top:1px solid var(--line)}
-  .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
-  .tabs[hidden]{display:none}
-  .tabs button{flex:1;min-width:70px;background:var(--panel);border:1px solid var(--line);color:var(--muted);border-radius:10px;padding:8px 6px;font:inherit;font-size:13px;cursor:pointer}
-  .tabs button.on{border-color:var(--gold);color:var(--text)}
-  .counts{display:flex;gap:6px;align-items:center;margin-top:12px}
-  .counts .n{flex:1;height:46px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--text);font:inherit;font-size:18px;font-weight:600;cursor:pointer}
-  .counts .n.pause{color:var(--muted)}
-  .counts .n.on{border:2px solid var(--gold);background:rgba(212,167,44,.15);color:var(--gold)}
-  .counts .nav{width:40px;height:46px;border-radius:10px;border:1px solid var(--line);background:none;color:var(--text);font-size:18px;cursor:pointer}
-  .barinfo{display:flex;justify-content:space-between;margin-top:8px;font-size:13px;color:var(--muted);gap:8px;flex-wrap:wrap}
-  .tips div{margin:6px 0}
-  .tips b{color:var(--gold)}
-  .warn{color:#ffb35c}
-  #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:20;padding:20px}
-  #login[hidden]{display:none}
-  #login .box{width:100%;max-width:340px;display:flex;flex-direction:column;gap:10px}
-  #login input{background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:12px;font:inherit}
-  label.opt{display:flex;gap:6px;align-items:center;font-size:14px}
-  select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px;font:inherit}
+  /* ---------- Structure ---------- */
+  #app{display:flex;height:100dvh;overflow:hidden}
+  aside{width:var(--side-w);flex:none;background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;
+    transition:transform .2s ease;z-index:30}
+  main{flex:1;display:flex;flex-direction:column;min-width:0;position:relative}
+  #overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:25}
+  @media(max-width:860px){
+    aside{position:fixed;top:0;bottom:0;left:0;transform:translateX(-100%)}
+    body.side-open aside{transform:none}
+  }
+  @media(min-width:861px){ #overlay{display:none !important} #menuBtn,#closeSide{display:none} }
+
+  /* ---------- Barre latérale ---------- */
+  .side-top{padding:14px 12px 8px;display:flex;align-items:center;gap:8px}
+  .brand{font-weight:700;font-size:18px;flex:1;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
+  .dots{display:inline-flex;gap:3px}
+  .dots i{width:9px;height:9px;border-radius:50%;display:block}
+  .new{margin:4px 12px 10px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);
+    background:var(--panel);cursor:pointer;font-weight:600}
+  .new:hover{background:var(--panel2)}
+  .side-label{font-size:12px;color:var(--muted);padding:8px 16px 4px;text-transform:uppercase;letter-spacing:.6px}
+  #convList{flex:1;overflow-y:auto;padding:0 8px 8px}
+  .conv{display:flex;align-items:center;gap:6px;padding:9px 10px;border-radius:10px;cursor:pointer;color:var(--text);font-size:14.5px}
+  .conv:hover{background:var(--panel2)}
+  .conv.on{background:var(--panel2);font-weight:600}
+  .conv .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .conv .more{opacity:.0;border:0;background:none;cursor:pointer;padding:2px 6px;border-radius:6px;color:var(--muted)}
+  .conv:hover .more,.conv.on .more{opacity:1}
+  @media(hover:none){ .conv .more{opacity:1} }
+  .side-foot{border-top:1px solid var(--line);padding:10px 12px;display:flex;gap:8px;align-items:center}
+  .side-foot .who{flex:1;display:flex;align-items:center;gap:10px;font-size:14px}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--accent);color:#000;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px}
+  .icon-btn{border:0;background:none;cursor:pointer;width:36px;height:36px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px}
+  .icon-btn:hover{background:var(--panel2);color:var(--text)}
+
+  /* ---------- En-tête ---------- */
+  header{height:54px;flex:none;display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid transparent}
+  header .title{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15.5px}
+  .mode-pill{font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+
+  /* ---------- Fil de discussion ---------- */
+  #feed{flex:1;overflow-y:auto;padding:8px 16px 24px;scroll-behavior:smooth}
+  .wrap{max-width:860px;margin:0 auto}
+  .turn{margin:18px 0 26px}
+  .q{background:var(--user);border-radius:18px;padding:10px 16px;margin:0 0 14px auto;max-width:85%;width:fit-content;white-space:pre-wrap;overflow-wrap:anywhere}
+  .answers{display:grid;gap:12px;grid-template-columns:1fr}
+  @media(min-width:1100px){.answers.multi{grid-template-columns:repeat(var(--n),1fr)}}
+  .ans{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px 8px;min-width:0}
+  .ans .who{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--c);margin-bottom:4px}
+  .ans .who i{width:9px;height:9px;border-radius:50%;background:var(--c)}
+  .body{overflow-wrap:anywhere}
+  .body p{margin:0 0 10px}
+  .body p:last-child{margin-bottom:4px}
+  .body ul,.body ol{margin:0 0 10px;padding-left:22px}
+  .body li{margin:3px 0}
+  .body h3{font-size:16px;margin:12px 0 6px}
+  .body pre{background:var(--code);padding:12px;border-radius:10px;overflow-x:auto;font-size:13.5px;border:1px solid var(--line)}
+  .body code{background:var(--code);padding:1px 5px;border-radius:5px;font-size:13.5px}
+  .body pre code{padding:0;background:none}
+  .ans.err .body{color:#e5636b}
+  .cursor::after{content:"▍";animation:blink 1s steps(2) infinite;color:var(--muted);margin-left:2px}
+  @keyframes blink{50%{opacity:0}}
+  .thinking{color:var(--muted);font-style:italic}
+  .tools{display:flex;gap:2px;margin-top:6px;flex-wrap:wrap}
+  .tool{border:0;background:none;cursor:pointer;font-size:13px;color:var(--muted);padding:5px 8px;border-radius:8px;display:inline-flex;gap:5px;align-items:center}
+  .tool:hover{background:var(--panel2);color:var(--text)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chip-btn{border:1px solid var(--line);background:var(--panel);cursor:pointer;border-radius:999px;padding:7px 14px;font-size:14px;font-weight:600}
+  .chip-btn:hover{background:var(--panel2)}
+  .media video,.media audio{width:100%;border-radius:12px;margin-top:8px}
+  .media video{max-height:70vh;background:#000}
+  .media a{color:var(--gemini);font-size:14px}
+
+  /* ---------- Accueil ---------- */
+  .hello{min-height:58vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px}
+  .hello h1{font-family:Georgia,"Times New Roman",serif;font-weight:400;font-size:34px;margin:14px 0 6px}
+  .hello p{color:var(--muted);margin:0 0 22px}
+  .sugg{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:640px}
+  .sugg button{border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:9px 13px;cursor:pointer;font-size:14px;text-align:left}
+  .sugg button:hover{background:var(--panel2)}
+  .big-dots{display:flex;gap:8px}
+  .big-dots i{width:18px;height:18px;border-radius:50%;display:block}
+
+  /* ---------- Zone de saisie ---------- */
+  .composer-wrap{flex:none;padding:8px 12px calc(10px + env(safe-area-inset-bottom));position:relative}
+  .composer{max-width:860px;margin:0 auto;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:10px 10px 8px 14px;
+    box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  textarea{width:100%;resize:none;border:0;outline:0;background:transparent;color:var(--text);font:inherit;max-height:200px;min-height:26px;padding:4px 0}
+  .crow{display:flex;align-items:center;gap:6px;margin-top:4px}
+  .plus{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:none;cursor:pointer;font-size:20px;line-height:1;color:var(--muted)}
+  .plus:hover{color:var(--text);background:var(--panel2)}
+  .mini{display:flex;gap:4px;flex:1;overflow-x:auto;scrollbar-width:none}
+  .mini::-webkit-scrollbar{display:none}
+  .body a{color:var(--perplexity);text-decoration:underline;overflow-wrap:anywhere}
+  .mini span{font-size:12.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .mini span.on{color:#fff;border-color:transparent}
+  .send{width:36px;height:36px;border-radius:12px;border:0;cursor:pointer;background:var(--accent);color:#000;font-size:18px;font-weight:700}
+  .send:disabled{opacity:.35;cursor:default}
+  .hint{text-align:center;font-size:11.5px;color:var(--muted);margin-top:6px}
+
+  /* ---------- Menu « + » ---------- */
+  #menu{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(100% - 4px);width:min(520px,calc(100% - 24px));background:var(--panel);
+    border:1px solid var(--line);border-radius:18px;padding:12px;box-shadow:0 10px 40px rgba(0,0,0,.25);z-index:20;max-height:70vh;overflow-y:auto}
+  .msec{padding:6px 4px 10px}
+  .msec+.msec{border-top:1px solid var(--line);padding-top:12px}
+  .mhint{font-size:12px;color:var(--muted);margin-top:8px}
+  .imgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+  .imgcard{border:1px solid var(--line);border-left:3px solid var(--c);border-radius:14px;padding:10px;background:var(--card)}
+  .imgcard img{width:100%;border-radius:10px;display:block;background:#000;cursor:zoom-in}
+  .imgcard .ph{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--soft);color:var(--muted);font-size:14px;text-align:center;padding:12px}
+  .qimg{max-width:120px;border-radius:10px;display:block;margin:0 0 6px auto}
+  .mlabel{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+  .seg{display:flex;gap:6px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:84px;border:1px solid var(--line);background:var(--bg);border-radius:12px;padding:9px 8px;cursor:pointer;font-size:14px}
+  .seg button.on{border-color:var(--accent);background:rgba(212,167,44,.14);font-weight:600}
+  .tog{display:flex;align-items:center;justify-content:space-between;padding:7px 2px;font-size:15px}
+  .switch{width:42px;height:24px;border-radius:999px;background:var(--line);position:relative;border:0;cursor:pointer;flex:none}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s}
+  .switch.on{background:var(--accent)}
+  .switch.on::after{left:21px}
+  .tog .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px}
+
+  /* ---------- Connexion ---------- */
+  #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px}
+  #login .box{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;text-align:center}
+  #login input{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px;font:inherit}
+  #login .go{background:var(--accent);color:#000;border:0;border-radius:12px;padding:12px;font-weight:700;cursor:pointer}
+  .atts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .att{display:flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:4px 6px 4px 4px;font-size:13px;max-width:220px}
+  .att img{width:36px;height:36px;object-fit:cover;border-radius:7px}
+  .att .ic{width:36px;height:36px;border-radius:7px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .att span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .att button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:15px;padding:0 4px}
+  .qfiles{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin:0 0 6px}
+  .qfiles img{width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+  .qfiles .f{background:var(--user);border-radius:10px;padding:6px 10px;font-size:13px}
+  .mic.on{background:#e5484d;color:#fff;border-color:#e5484d}
+  .search{margin:0 12px 6px;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+  .search input{flex:1;border:0;outline:0;background:transparent;color:var(--text);font:inherit;font-size:14px;min-width:0}
+  .conv .hit{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:400}
+  #sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:55;display:flex;align-items:flex-end;justify-content:center}
+  @media(min-width:861px){ #sheet{align-items:center} }
+  #sheet .box{background:var(--panel);color:var(--text);width:min(420px,100%);border-radius:18px 18px 0 0;padding:10px 8px calc(10px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.3)}
+  @media(min-width:861px){ #sheet .box{border-radius:18px} }
+  #sheet .ttl{font-weight:600;padding:8px 14px 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid var(--line);margin-bottom:4px}
+  #sheet button{display:flex;gap:12px;align-items:center;width:100%;border:0;background:none;cursor:pointer;padding:13px 14px;border-radius:12px;font-size:16px;text-align:left}
+  #sheet button:hover{background:var(--panel2)}
+  #sheet button.danger{color:#e5484d}
+  .pin-ic{font-size:12px;margin-right:2px}
+  #pinTop{opacity:.35}
+  #pinTop.on{opacity:1}
+  .side-tools{display:flex;gap:6px;padding:6px 12px 0}
+  .side-tools button{flex:1;border:1px solid var(--line);background:none;cursor:pointer;border-radius:10px;padding:7px;font-size:13px;color:var(--muted)}
+  .side-tools button:hover{background:var(--panel2);color:var(--text)}
+  #toast{position:fixed;left:50%;transform:translateX(-50%);bottom:110px;background:var(--text);color:var(--bg);padding:8px 14px;border-radius:10px;font-size:14px;z-index:60}
 </style>
 </head>
 <body>
 
 <div id="login" hidden>
   <div class="box">
-    <h2 style="margin:0">Dance Coach</h2>
-    <div class="muted" data-t="pw"></div>
-    <input id="pw" type="password" />
-    <button class="btn gold" id="pwBtn">OK</button>
+    <div class="big-dots" style="justify-content:center"><i style="background:var(--claude)"></i><i style="background:var(--openai)"></i><i style="background:var(--gemini)"></i><i style="background:var(--perplexity)"></i></div>
+    <h2 style="margin:4px 0 0">D.IA.logue</h2>
+    <div style="color:var(--muted);font-size:14px">Entre ton mot de passe</div>
+    <div style="display:flex;gap:8px">
+      <input id="pw" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" />
+      <button type="button" id="pwEye" class="icon-btn" style="border:1px solid var(--line);width:48px;height:48px" aria-label="Voir le mot de passe">👁️</button>
+    </div>
+    <button class="go" id="pwBtn">Entrer</button>
   </div>
 </div>
 
-<header>
-  <h1>Dance <span>Coach</span></h1>
-  <div class="seg" id="langSeg">
-    <button data-lang="fr" class="on">FR</button><button data-lang="en">EN</button><button data-lang="es">ES</button>
-  </div>
-</header>
+<div id="app">
+  <aside id="side">
+    <div class="side-top">
+      <div class="brand"><span class="dots"><i style="background:var(--claude)"></i><i style="background:var(--openai)"></i><i style="background:var(--gemini)"></i><i style="background:var(--perplexity)"></i></span>D.IA.logue</div>
+      <button class="icon-btn" id="closeSide" title="Fermer">✕</button>
+    </div>
+    <button class="new" id="newBtn"><span style="font-size:18px">＋</span> Nouvelle conversation</button>
+    <div class="search"><span>🔍</span><input id="searchInput" type="search" placeholder="Rechercher…" autocomplete="off" /></div>
+    <div class="side-label" id="convLabel">Conversations</div>
+    <div id="convList"></div>
+    <div class="side-tools"><button id="backupBtn" title="Télécharger une sauvegarde de toutes tes conversations">💾 Sauvegarder</button><button id="restoreBtn" title="Restaurer une sauvegarde">📂 Restaurer</button></div>
+    <div class="side-foot">
+      <div class="who"><div class="avatar">H</div><span>Hamidine</span></div>
+      <button class="icon-btn" id="themeBtn" title="Thème clair / sombre">☀️</button>
+      <button class="icon-btn" id="logoutBtn" title="Se déconnecter">🚪</button>
+    </div>
+  </aside>
+  <div id="overlay" hidden></div>
 
-<main>
-  <!-- Étape 1 : choisir la vidéo -->
-  <section class="card" id="step1">
-    <h2 data-t="s1"></h2>
-    <div class="muted" data-t="s1tip" style="margin-bottom:10px"></div>
-    <input type="file" id="file" accept="video/*" />
-    <div id="cutBox" hidden style="margin-top:12px">
-      <video id="cutVideo" playsinline controls style="width:min(100%,480px);border-radius:10px;background:#000"></video>
-      <div class="muted" style="margin-top:8px" data-t="cutTip"></div>
-      <label class="opt" style="margin-top:8px"><span data-t="cutStart"></span> <b id="cutStartTxt">0:00</b></label>
-      <input type="range" id="cutStart" min="0" max="0" step="0.5" value="0" style="width:min(100%,480px);accent-color:var(--gold)" />
-      <label class="opt"><span data-t="cutLen"></span> <b id="cutLenTxt">60 s</b></label>
-      <input type="range" id="cutLen" min="5" max="60" step="1" value="60" style="width:min(100%,480px);accent-color:var(--gold)" />
-      <div class="row" style="margin-top:8px">
-        <button class="btn ghost" id="cutPrev" data-t="cutPrev"></button>
-        <button class="btn ghost" id="cutPlay" data-t="cutPlay"></button>
-        <button class="btn ghost" id="cutNext" data-t="cutNext"></button>
-      </div>
-      <div class="muted" id="cutRange" style="margin-top:6px"></div>
-    </div>
-    <div class="row" style="margin-top:12px">
-      <label class="opt"><span data-t="role"></span>
-        <select id="role">
-          <option value="leader" data-t="leader"></option>
-          <option value="follower" data-t="follower"></option>
-          <option value="both" data-t="both"></option>
-        </select>
-      </label>
-      <label class="opt"><span data-t="dance"></span>
-        <select id="danse">
-          <option value="salsa on1">Salsa on1</option>
-        </select>
-      </label>
-    </div>
-    <div class="row" style="margin-top:12px">
-      <button class="btn" id="prepBtn" disabled data-t="prepare"></button>
-    </div>
-    <div id="prepBox" hidden style="margin-top:12px">
-      <div class="muted" id="prepMsg"></div>
-      <progress id="prepBar" max="1" value="0"></progress>
-    </div>
-  </section>
+  <main>
+    <header>
+      <button class="icon-btn" id="menuBtn" title="Conversations">☰</button>
+      <div class="title" id="convTitle">Nouvelle conversation</div>
+      <span class="mode-pill" id="modePill">💬 Discussion</span>
+      <button class="icon-btn" id="pinTop" title="Épingler cette conversation">📌</button>
+      <button class="icon-btn" id="exportBtn" title="Exporter en PDF">⤓</button>
+      <button class="icon-btn" id="newTop" title="Nouvelle conversation">✎</button>
+    </header>
 
-  <!-- Étape 2 : caler le rythme -->
-  <section class="card" id="step2" hidden>
-    <h2 data-t="s2"></h2>
-    <div class="muted" data-t="s2tip" style="margin-bottom:10px"></div>
-    <div class="row" style="align-items:flex-start">
-      <video id="calVideo" playsinline controls style="width:min(100%,420px);border-radius:10px;background:#000"></video>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div class="big1" id="calCount">–</div>
-        <div class="muted"><span id="bpmTxt">–</span> BPM</div>
-      </div>
-    </div>
-    <div class="row" style="margin-top:12px">
-      <button class="btn gold" id="oneBtn" data-t="isone"></button>
-      <button class="btn ghost" id="tapBtn" data-t="tap"></button>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn ghost" data-bpm="-5">−5</button>
-      <button class="btn ghost" data-bpm="-1">−1</button>
-      <button class="btn ghost" data-bpm="1">+1</button>
-      <button class="btn ghost" data-bpm="5">+5</button>
-      <button class="btn ghost" data-bpm="half">÷2</button>
-      <button class="btn ghost" data-bpm="double">×2</button>
-    </div>
-    <div class="muted" id="tapMsg" style="margin-top:8px"></div>
-    <div class="row" style="margin-top:14px">
-      <button class="btn" id="anaBtn" data-t="analyze"></button>
-    </div>
-    <div id="anaBox" hidden style="margin-top:12px">
-      <div class="muted" id="anaMsg"></div>
-      <progress id="anaBar" max="1" value="0"></progress>
-    </div>
-  </section>
+    <div id="feed"><div class="wrap" id="feedInner"></div></div>
 
-  <!-- Étape 3 : les 4 fenêtres -->
-  <section id="step3" hidden>
-    <div class="live" id="liveMsg" hidden></div>
-    <div class="row" style="justify-content:space-between;margin-bottom:10px">
-      <div class="seg" id="viewSeg">
-        <button data-view="4" class="on" data-t="view4"></button><button data-view="1" data-t="view1"></button>
-      </div>
-    </div>
-    <div class="tabs" id="tabs" hidden>
-      <button data-p="1" class="on" data-t="w1s"></button>
-      <button data-p="2" data-t="w2s"></button>
-      <button data-p="3" data-t="w3s"></button>
-      <button data-p="4" data-t="w4s"></button>
-    </div>
-    <div class="grid" id="grid">
-      <div class="panel" data-p="1">
-        <div class="ptitle" data-t="w1"></div>
-        <div class="vwrap">
-          <video id="v" playsinline controls></video>
-          <div class="badge" id="badge"></div>
+    <div class="composer-wrap">
+      <div id="menu" hidden>
+        <div class="msec">
+          <div class="mlabel">Mode</div>
+          <div class="seg" id="modeSeg">
+            <button data-mode="chat">💬 Discussion</button>
+            <button data-mode="video">🎬 Vidéo</button>
+            <button data-mode="music">🎵 Musique</button>
+            <button data-mode="image">🖼️ Image</button>
+          </div>
         </div>
-        <div class="speed">
-          <span>🐢</span>
-          <input type="range" id="speedRange" min="0.25" max="1" step="0.05" value="1" />
-          <span>🐇</span>
-          <b id="speedTxt">1×</b>
+        <div class="msec" id="secAis">
+          <div class="mlabel">Qui répond ?</div>
+          <div class="tog"><span><span class="dot" style="background:var(--claude)"></span>Claude</span><button class="switch" data-ai="claude"></button></div>
+          <div class="tog"><span><span class="dot" style="background:var(--openai)"></span>ChatGPT</span><button class="switch" data-ai="openai"></button></div>
+          <div class="tog"><span><span class="dot" style="background:var(--gemini)"></span>Gemini</span><button class="switch" data-ai="gemini"></button></div>
+          <div class="tog"><span><span class="dot" style="background:var(--perplexity)"></span>Perplexity <small style="color:var(--muted)">(cherche sur Internet)</small></span><button class="switch" data-ai="perplexity"></button></div>
+          <div class="tog"><span>⚔️ Mode débat <small style="color:var(--muted)">(chacun lit les autres)</small></span><button class="switch" id="debateSw"></button></div>
         </div>
-        <div class="pcap muted" id="cap1"></div>
+        <div class="msec" id="secJudge">
+          <div class="mlabel">Le résumé est fait par</div>
+          <div class="seg" id="judgeSeg">
+            <button data-j="claude">Claude</button><button data-j="openai">ChatGPT</button><button data-j="gemini">Gemini</button><button data-j="perplexity">Perplexity</button>
+          </div>
+        </div>
+        <div class="msec" id="secVideo">
+          <div class="mlabel">Vidéo</div>
+          <div class="seg" style="margin-bottom:8px">
+            <button class="opt" data-k="ratio" data-v="720:1280">📱 Vertical</button><button class="opt" data-k="ratio" data-v="1280:720">🖥️ Horizontal</button>
+          </div>
+          <div class="seg">
+            <button class="opt" data-k="duration" data-v="5">5 secondes</button><button class="opt" data-k="duration" data-v="10">10 secondes</button>
+          </div>
+        </div>
+        <div class="msec" id="secImage">
+          <div class="mlabel">Image · ChatGPT et Gemini</div>
+          <div class="seg">
+            <button class="opt" data-k="format" data-v="square">Carré</button><button class="opt" data-k="format" data-v="portrait">Vertical</button><button class="opt" data-k="format" data-v="landscape">Horizontal</button>
+          </div>
+          <div class="mhint">📎 Joins une photo pour la faire retoucher.</div>
+        </div>
+        <div class="msec" id="secMusic">
+          <div class="mlabel">Musique</div>
+          <div class="seg">
+            <button class="opt" data-k="seconds" data-v="30">30 s</button><button class="opt" data-k="seconds" data-v="60">1 min</button><button class="opt" data-k="seconds" data-v="120">2 min</button>
+          </div>
+        </div>
       </div>
-      <div class="panel" data-p="2">
-        <div class="ptitle" data-t="w2"></div>
-        <div class="desc" id="desc"></div>
-      </div>
-      <div class="panel" data-p="3">
-        <div class="ptitle" data-t="w3"></div>
-        <canvas id="c3"></canvas>
-        <div class="pcap" id="cap3"></div>
-      </div>
-      <div class="panel" data-p="4">
-        <div class="ptitle" data-t="w4"></div>
-        <canvas id="c4"></canvas>
-        <div class="pcap" id="cap4"></div>
-      </div>
-    </div>
 
-    <div class="counts" id="counts">
-      <button class="nav" id="prevBar">‹</button>
-      <button class="n" data-n="1">1</button><button class="n" data-n="2">2</button><button class="n" data-n="3">3</button>
-      <button class="n" data-n="5">5</button><button class="n" data-n="6">6</button><button class="n" data-n="7">7</button>
-      <button class="nav" id="nextBar">›</button>
-    </div>
-    <div class="barinfo"><span id="barTxt"></span><span id="figTxt"></span></div>
-
-    <div class="card tips" style="margin-top:14px">
-      <div class="warn" id="tUnsure"></div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn ghost" id="restart" data-t="new"></button>
-        <button class="btn ghost" id="recal" data-t="recal"></button>
-        <button class="btn ghost" id="otherPart" data-t="otherPart"></button>
+      <div class="composer">
+        <div class="atts" id="atts" hidden></div>
+        <textarea id="input" rows="1" placeholder="Pose ta question aux IA…"></textarea>
+        <input type="file" id="fileInput" accept="image/*,application/pdf,.txt,.csv,.md,text/plain,text/csv" multiple hidden />
+        <div class="crow">
+          <button class="plus" id="plusBtn" title="Options">＋</button>
+          <button class="plus" id="clipBtn" title="Joindre une photo ou un fichier">📎</button>
+          <button class="plus mic" id="micBtn" title="Dicter">🎤</button>
+          <div class="mini" id="mini"></div>
+          <button class="send" id="sendBtn" title="Envoyer">↑</button>
+        </div>
       </div>
+      <div class="hint">Les IA peuvent se tromper. Vérifie les infos importantes.</div>
     </div>
-  </section>
-</main>
+  </main>
+</div>
+<div id="toast" hidden></div>
+<div id="sheet" hidden><div class="box"><div class="ttl" id="sheetTitle"></div><div id="sheetBody"></div></div></div>
+<input type="file" id="restoreInput" accept="application/json,.json" hidden />
 
 <script>
-// ==PURE== (fonctions sans écran, testables)
-const POSE = {
-  nose:0, lSh:11, rSh:12, lEl:13, rEl:14, lWr:15, rWr:16, lHip:23, rHip:24, lKn:25, rKn:26, lAn:27, rAn:28,
+// ==================== Données ====================
+const AIS = {
+  claude: { label: "Claude",  color: "var(--claude)" },
+  openai: { label: "ChatGPT", color: "var(--openai)" },
+  gemini: { label: "Gemini",  color: "var(--gemini)" },
+  perplexity: { label: "Perplexity", color: "var(--perplexity)" },
 };
-const BONES = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28],[27,31],[28,32]];
-const UPPER = [0,11,12,13,14,15,16];
-
-// Rythme : à partir du BPM et de l'instant d'un "1"
-function beatLen(bpm){ return 60 / bpm; }
-function countIndexAt(t, t1, bpm){ return Math.floor((t - t1) / beatLen(bpm) + 1e-6); }
-function isPause(n){ return n === 4 || n === 8; }
-function countNumber(k){ return ((k % 8) + 8) % 8 + 1; }
-function barNumber(k){ return Math.floor(k / 8) + 1; }
-function timeOfIndex(k, t1, bpm){ return t1 + k * beatLen(bpm); }
-// Indices de comptes à analyser : de 0 s à la fin, 48 au maximum
-function countsToAnalyze(end, t1, bpm, max = 48, start = 0){
-  const b = beatLen(bpm);
-  let k = Math.ceil((start - t1) / b - 1e-6);
-  const out = [];
-  while (out.length < max){
-    const t = timeOfIndex(k, t1, bpm);
-    if (t > end - 0.05) break;
-    if (t >= start) out.push({ k, t, n: countNumber(k), m: barNumber(k) });
-    k++;
-  }
-  return out;
-}
-// Passage de la vidéo : début et fin, 60 s au maximum
-function clampSegment(start, length, total, max = 60){
-  const len = Math.max(5, Math.min(length, max, total));
-  const st = Math.max(0, Math.min(start, Math.max(0, total - len)));
-  return { start: st, end: st + len };
-}
-function fmtTime(sec){
-  const m = Math.floor(sec / 60), s2 = Math.floor(sec % 60);
-  return `${m}:${String(s2).padStart(2, "0")}`;
-}
-// Ramener l'instant tapé sur la grille du tempo détecté
-function snapToGrid(t, t0, bpm){
-  const b = beatLen(bpm);
-  return t0 + Math.round((t - t0) / b) * b;
-}
-// Tempo à partir de frappes (instants en secondes) : droite des moindres carrés, plus juste que premier/dernier
-function tapTempo(taps){
-  if (taps.length < 4) return null;
-  const n = taps.length, mx = (n - 1) / 2, my = taps.reduce((a, b) => a + b, 0) / n;
-  let num = 0, den = 0;
-  taps.forEach((t, i) => { num += (i - mx) * (t - my); den += (i - mx) * (i - mx); });
-  const per = num / den;
-  return per > 0 ? Math.round(600 / per) / 10 : null;
-}
-// Courbe des attaques de la musique (percussions) : 2 bandes, compression log, variations positives
-function onsetEnvelope(samples, sr){
-  const hop = Math.round(sr / 100), win = hop * 2, env = [];
-  let pLow = 0, pHigh = 0, lp = 0, prevX = 0;
-  const a = Math.exp(-2 * Math.PI * 200 / sr); // passe-bas 200 Hz (basse, tumbao, grosse caisse)
-  const low = new Float32Array(samples.length), high = new Float32Array(samples.length);
-  for (let i = 0; i < samples.length; i++){
-    const x = samples[i];
-    lp = (1 - a) * x + a * lp; low[i] = lp;
-    high[i] = x - prevX; prevX = x; // passe-haut simple (cloche, claves, timbales)
-  }
-  for (let i = 0; i + win < samples.length; i += hop){
-    let el = 0, eh = 0;
-    for (let j = i; j < i + win; j++){ el += low[j] * low[j]; eh += high[j] * high[j]; }
-    const L = Math.log(1 + 1000 * el / win), H = Math.log(1 + 1000 * eh / win);
-    env.push(Math.max(0, L - pLow) + Math.max(0, H - pHigh));
-    pLow = L; pHigh = H;
-  }
-  // retirer la tendance locale
-  const out = env.map((v, i) => {
-    let m = 0, c = 0;
-    for (let k = Math.max(0, i - 20); k <= Math.min(env.length - 1, i + 20); k++){ m += env[k]; c++; }
-    return Math.max(0, v - m / c);
-  });
-  return { env: out, fr: sr / hop };
-}
-function envAt(env, pos){ const i = Math.floor(pos), f = pos - i; return (env[i] || 0) * (1 - f) + (env[i + 1] || 0) * f; }
-// Peigne de temps : trouve le tempo précis (et le décalage) autour d'un tempo approximatif
-function refineTempo(E, bpmGuess, range = 0.04){
-  const { env, fr } = E;
-  let best = -Infinity, bpm = bpmGuess, off = 0;
-  for (let b = bpmGuess * (1 - range); b <= bpmGuess * (1 + range); b += 0.05){
-    const per = 60 * fr / b;
-    for (let o = 0; o < per; o += 0.5){
-      let s = 0, c = 0;
-      for (let i = o; i < env.length - 1; i += per){ s += envAt(env, i); c++; }
-      s /= c || 1;
-      if (s > best){ best = s; bpm = b; off = o; }
-    }
-  }
-  return { bpm: Math.round(bpm * 100) / 100, t0: off / fr };
-}
-// Estimation du tempo de la musique, avec une préférence pour les tempos de salsa (≈ 150-220 BPM)
-function estimateTempo(samples, sr, prior = 190){
-  const E = onsetEnvelope(samples, sr);
-  const { env, fr } = E;
-  const mean = env.reduce((a, b) => a + b, 0) / (env.length || 1);
-  const x = env.map(v => v - mean);
-  const ac = lag => { let s = 0; for (let i = 0; i + lag < x.length; i++) s += x[i] * x[i + lag]; return s / (x.length - lag); };
-  const minLag = Math.floor(fr * 60 / 240), maxLag = Math.ceil(fr * 60 / 70);
-  const A = []; for (let l = 0; l <= 2 * maxLag + 2; l++) A[l] = l >= minLag ? ac(l) : 0;
-  let bestLag = 0, best = -Infinity;
-  for (let lag = minLag; lag <= maxLag; lag++){
-    const bpm = 60 * fr / lag;
-    const w = Math.exp(-0.5 * Math.pow(Math.log2(bpm / prior) / 0.25, 2));
-    const s = A[lag] * w;
-    if (s > best){ best = s; bestLag = lag; }
-  }
-  if (!bestLag) return null;
-  const r = refineTempo(E, 60 * fr / bestLag, 0.04);
-  return { bpm: r.bpm, t0: r.t0, E };
-}
-// Trier les danseurs de gauche à droite (A = gauche, B = droite)
-function sortPoses(poses){
-  const cx = p => ((p[23]?.[0] ?? p[0][0]) + (p[24]?.[0] ?? p[0][0])) / 2;
-  return poses.slice().sort((a, b) => cx(a) - cx(b));
-}
-// Image de poses la plus proche d'un instant
-function nearestFrame(frames, t){
-  if (!frames.length) return null;
-  let lo = 0, hi = frames.length - 1;
-  while (lo < hi){ const mid = (lo + hi) >> 1; if (frames[mid].t < t) lo = mid + 1; else hi = mid; }
-  if (lo > 0 && Math.abs(frames[lo-1].t - t) < Math.abs(frames[lo].t - t)) lo--;
-  return frames[lo];
-}
-// Cadre englobant de points visibles, avec marge, au format voulu
-function boxOf(points, margin, aspect){
-  const vis = points.filter(p => p && (p[2] ?? 1) > 0.3);
-  if (!vis.length) return null;
-  let x0 = Math.min(...vis.map(p => p[0])), x1 = Math.max(...vis.map(p => p[0]));
-  let y0 = Math.min(...vis.map(p => p[1])), y1 = Math.max(...vis.map(p => p[1]));
-  let w = x1 - x0, h = y1 - y0;
-  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  w = Math.max(w * (1 + margin), 0.15); h = Math.max(h * (1 + margin), 0.15);
-  if (w / h > aspect) h = w / aspect; else w = h * aspect;
-  return { x: cx - w / 2, y: cy - h / 2, w, h };
-}
-function pick(obj, lang){ return obj ? (obj[lang] || obj.fr || obj.en || obj.es || "") : ""; }
-// ==/PURE==
-</script>
-
-<script type="module">
-const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
-const MODEL = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
-const MAX_SECONDS = 60, FPS = 8;
-
-const T = {
-  fr:{ pw:"Entre ton mot de passe", s1:"1. Choisis une vidéo", s1tip:"Filme de face, pieds visibles, bonne lumière. Si la vidéo dure plus de 60 secondes, choisis le passage à décrypter.", cutTip:"Choisis le passage à décrypter (60 secondes maximum).", cutStart:"Début :", cutLen:"Durée :", cutPrev:"◀ 60 s avant", cutNext:"60 s après ▶", cutPlay:"▶ Voir le passage", cutSel:"Passage choisi :", role:"Expliquer pour :", leader:"le cavalier", follower:"la cavalière", both:"les deux", dance:"Danse :", prepare:"Préparer la vidéo",
-    loadingModel:"Chargement du détecteur de mouvements…", poses:"Repérage des corps image par image…", audio:"Écoute de la musique…", noAudio:"Pas de musique détectée : tape le tempo à l'étape suivante.",
-    s2:"2. Cale le rythme", s2tip:"L'appli a trouvé le tempo de la musique. Lance la vidéo et appuie sur « C'est le 1 ! » quand tu entends un 1 : c'est tout. Si le compte va 2 fois trop vite ou trop lentement, appuie sur ÷2 ou ×2. Si ce n'est toujours pas bon, tape 8 temps sur « Taper le tempo » en commençant sur un 1 : l'appli se cale ensuite toute seule sur la musique.", isone:"C'est le 1 !", tap:"Taper le tempo", tapNeed:"Encore quelques frappes…", tapOk:"Tempo calé sur tes frappes.", oneOk:"Le 1 est calé.",
-    analyze:"Lancer le décryptage", frames:"Capture d'une image par compte…", ai:"L'IA décrypte les comptes…", translating:"Traduction en cours…", tooLong:"Seules les 60 premières secondes sont analysées.",
-    view4:"4 fenêtres", view1:"1 fenêtre", w1:"1 · Vidéo originale", w2:"2 · Les explications", w3:"3 · Haut du corps", w4:"4 · Les pieds", w1s:"Originale", w2s:"Explications", w3s:"Haut", w4s:"Pieds",
-    bar:"Mesure", tips:"Conseils", good:"Ce qui est bien :", mistake:"À corriger :", exercise:"Exercice :", new:"Nouvelle vidéo", recal:"Recaler le rythme", otherPart:"Décrypter un autre passage",
-    feet:"Pieds", hands:"Mains et bras", body:"Ce qui se passe", notAnalyzed:"Compte non analysé.", left:"gauche", right:"droit", dancerA:"Danseur A (gauche)", dancerB:"Danseur B (droite)", err:"Erreur : ", partial:"L'IA était saturée : quelques comptes n'ont pas été analysés (« Compte non analysé »). Relance le décryptage plus tard pour les avoir." },
-  en:{ pw:"Enter your password", s1:"1. Choose a video", s1tip:"Film from the front, feet visible, good light. If the video is longer than 60 seconds, choose the part to break down.", cutTip:"Choose the part to break down (60 seconds max).", cutStart:"Start:", cutLen:"Length:", cutPrev:"◀ 60 s before", cutNext:"60 s after ▶", cutPlay:"▶ Watch the part", cutSel:"Selected part:", role:"Explain for:", leader:"the leader", follower:"the follower", both:"both", dance:"Dance:", prepare:"Prepare the video",
-    loadingModel:"Loading the movement detector…", poses:"Tracking bodies frame by frame…", audio:"Listening to the music…", noAudio:"No music detected: tap the tempo in the next step.",
-    s2:"2. Set the rhythm", s2tip:"The app has found the tempo of the music. Play the video and press “It's the 1!” when you hear a 1: that's all. If the count is twice too fast or too slow, press ÷2 or ×2. If it's still wrong, tap 8 beats on “Tap tempo”, starting on a 1: the app then locks onto the music by itself.", isone:"It's the 1!", tap:"Tap tempo", tapNeed:"A few more taps…", tapOk:"Tempo set from your taps.", oneOk:"The 1 is set.",
-    analyze:"Start the breakdown", frames:"Capturing one image per count…", ai:"The AI is breaking down the counts…", translating:"Translating…", tooLong:"Only the first 60 seconds are analysed.",
-    view4:"4 windows", view1:"1 window", w1:"1 · Original video", w2:"2 · Explanation", w3:"3 · Upper body", w4:"4 · Feet", w1s:"Original", w2s:"Explanation", w3s:"Upper", w4s:"Feet",
-    bar:"Bar", tips:"Tips", good:"What's good:", mistake:"To fix:", exercise:"Exercise:", new:"New video", recal:"Reset the rhythm", otherPart:"Break down another part",
-    feet:"Feet", hands:"Hands and arms", body:"What happens", notAnalyzed:"Count not analysed.", left:"left", right:"right", dancerA:"Dancer A (left)", dancerB:"Dancer B (right)", err:"Error: ", partial:"The AI was overloaded: a few counts were not analysed (“Count not analysed”). Run the analysis again later to get them." },
-  es:{ pw:"Escribe tu contraseña", s1:"1. Elige un vídeo", s1tip:"Graba de frente, pies visibles, buena luz. Si el vídeo dura más de 60 segundos, elige el fragmento que quieres analizar.", cutTip:"Elige el fragmento a analizar (60 segundos máximo).", cutStart:"Inicio:", cutLen:"Duración:", cutPrev:"◀ 60 s antes", cutNext:"60 s después ▶", cutPlay:"▶ Ver el fragmento", cutSel:"Fragmento elegido:", role:"Explicar para:", leader:"el líder", follower:"la seguidora", both:"los dos", dance:"Baile:", prepare:"Preparar el vídeo",
-    loadingModel:"Cargando el detector de movimientos…", poses:"Detectando los cuerpos imagen por imagen…", audio:"Escuchando la música…", noAudio:"No se detecta música: marca el tempo en el siguiente paso.",
-    s2:"2. Ajusta el ritmo", s2tip:"La app ha encontrado el tempo de la música. Reproduce el vídeo y pulsa «¡Es el 1!» cuando oigas un 1: eso es todo. Si la cuenta va el doble de rápida o de lenta, pulsa ÷2 o ×2. Si sigue sin estar bien, marca 8 tiempos en «Marcar el tempo» empezando en un 1: la app se ajusta sola a la música.", isone:"¡Es el 1!", tap:"Marcar el tempo", tapNeed:"Unos toques más…", tapOk:"Tempo ajustado con tus toques.", oneOk:"El 1 está ajustado.",
-    analyze:"Iniciar el análisis", frames:"Capturando una imagen por tiempo…", ai:"La IA analiza los tiempos…", translating:"Traduciendo…", tooLong:"Solo se analizan los primeros 60 segundos.",
-    view4:"4 ventanas", view1:"1 ventana", w1:"1 · Vídeo original", w2:"2 · Explicación", w3:"3 · Parte superior", w4:"4 · Los pies", w1s:"Original", w2s:"Explicación", w3s:"Arriba", w4s:"Pies",
-    bar:"Compás", tips:"Consejos", good:"Lo que está bien:", mistake:"A corregir:", exercise:"Ejercicio:", new:"Nuevo vídeo", recal:"Reajustar el ritmo", otherPart:"Analizar otro fragmento",
-    feet:"Pies", hands:"Manos y brazos", body:"Qué pasa", notAnalyzed:"Tiempo no analizado.", left:"izquierdo", right:"derecho", dancerA:"Bailarín A (izquierda)", dancerB:"Bailarín B (derecha)", err:"Error: ", partial:"La IA estaba saturada: algunos tiempos no se analizaron («Tiempo no analizado»). Vuelve a lanzar el análisis más tarde." },
+const MODES = { chat:"💬 Discussion", video:"🎬 Vidéo", music:"🎵 Musique", image:"🖼️ Image" };
+const PLACEHOLDER = {
+  chat: "Pose ta question aux IA…",
+  image: "Décris l'image (ex. : affiche de soirée salsa à Nice, couple qui danse, couleurs or et noir)…",
+  video: "Décris la vidéo (ex. : couple qui danse la salsa sur un toit à Nice au coucher du soleil)…",
+  music: "Décris la musique (ex. : salsa romantique, piano et trompettes, 95 BPM, chant en espagnol)…",
 };
+const REACT_Q = "Lis les réponses des autres IA ci-dessus. Dis avec quoi tu es d'accord, ce qui est faux ou incomplet, et ce que tu ajouterais ou corrigerais dans ta propre réponse. Sois franc et concret.";
+const SUGGESTIONS = [
+  "Donne-moi 3 idées de post Instagram pour mon école de danse",
+  "Comment trouver mes premiers clients pour mon assistant WhatsApp ?",
+  "Écris un message pour annoncer le Riviera Latin Fest",
+];
 
-const $ = s => document.querySelector(s);
 const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch{ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} },
 };
-let lang = store.get("dd_lang", "fr");
-let password = store.get("dd_pw", "");
-const S = { file:null, url:null, total:0, start:0, end:0, duration:0, aspect:16/9, frames:[], bpm:180, t0:0, t1:0, taps:[], analysis:null, list:[], view:"4", panel:"1", ankleRange:null };
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-// ---------- Langue ----------
-function t(k){ return (T[lang] && T[lang][k]) || T.fr[k] || k; }
-function applyLang(){
-  document.documentElement.lang = lang;
-  document.querySelectorAll("[data-t]").forEach(el => el.textContent = t(el.dataset.t));
-  document.querySelectorAll("#langSeg button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
-  if (S.analysis){ updateTips(); if (!S.langs?.[lang]) translateTo(lang); }
-  if (S.total) updateCut();
-}
-document.querySelectorAll("#langSeg button").forEach(b => b.onclick = () => { lang = b.dataset.lang; store.set("dd_lang", lang); applyLang(); });
-
-// ---------- Mot de passe ----------
-$("#pwBtn").onclick = () => { password = $("#pw").value; store.set("dd_pw", password); $("#login").hidden = true; };
-$("#pw").addEventListener("keydown", e => { if (e.key === "Enter") $("#pwBtn").click(); });
-
-// ---------- Étape 1 ----------
-const cutV = $("#cutVideo");
-$("#file").onchange = () => {
-  S.file = $("#file").files[0] || null;
-  $("#prepBtn").disabled = !S.file;
-  if (!S.file) return;
-  if (S.url) URL.revokeObjectURL(S.url);
-  S.url = URL.createObjectURL(S.file);
-  cutV.src = S.url;
-  cutV.onloadedmetadata = () => {
-    S.total = cutV.duration || 0;
-    $("#cutBox").hidden = false;
-    $("#cutStart").max = Math.max(0, S.total - 5);
-    $("#cutStart").value = 0;
-    $("#cutLen").max = Math.max(5, Math.min(60, Math.floor(S.total)));
-    $("#cutLen").value = Math.min(60, Math.floor(S.total));
-    updateCut();
-  };
-};
-function updateCut(){
-  const seg = clampSegment(Number($("#cutStart").value), Number($("#cutLen").value), S.total);
-  S.start = seg.start; S.end = seg.end;
-  $("#cutStart").value = S.start;
-  $("#cutStartTxt").textContent = fmtTime(S.start);
-  $("#cutLenTxt").textContent = `${Math.round(S.end - S.start)} s`;
-  $("#cutRange").textContent = `${t("cutSel")} ${fmtTime(S.start)} → ${fmtTime(S.end)} / ${fmtTime(S.total)}`;
-  $("#cutPrev").disabled = S.start <= 0;
-  $("#cutNext").disabled = S.end >= S.total - 0.5;
-}
-$("#cutStart").oninput = () => { updateCut(); cutV.currentTime = S.start; };
-$("#cutLen").oninput = updateCut;
-$("#cutPrev").onclick = () => { $("#cutStart").value = Math.max(0, S.start - 60); updateCut(); cutV.currentTime = S.start; };
-$("#cutNext").onclick = () => { $("#cutStart").value = S.start + 60; updateCut(); cutV.currentTime = S.start; };
-$("#cutPlay").onclick = () => { cutV.currentTime = S.start; cutV.play(); };
-// Les vidéos restent dans le passage choisi
-function keepInSegment(video){
-  video.addEventListener("timeupdate", () => {
-    if (!S.end) return;
-    if (video.currentTime > S.end || video.currentTime < S.start - 0.3){
-      video.currentTime = S.start;
-      if (video === cutV) video.pause();
-    }
-  });
-}
-keepInSegment(cutV);
-
-function seek(video, time){
-  return new Promise(ok => {
-    let timer;
-    const done = () => { clearTimeout(timer); video.removeEventListener("seeked", done); ok(); };
-    video.addEventListener("seeked", done);
-    timer = setTimeout(done, 4000); // ne jamais rester bloqué sur un téléphone lent
-    video.currentTime = time;
-  });
-}
-// Libère le lecteur d'une vidéo (les téléphones n'en acceptent que quelques-uns à la fois)
-function freePlayer(el){
-  if (!el || !el.getAttribute("src")) return;
-  el.pause(); el.removeAttribute("src"); el.load();
-}
-function loadOnce(video, url){
-  return new Promise((ok, ko) => {
-    video.muted = true; video.playsInline = true; video.preload = "auto";
-    video.setAttribute("playsinline", "");
-    if (!video.isConnected){ video.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(video); }
-    const timer = setTimeout(() => ko(new Error("Vidéo trop longue à charger")), 30000);
-    video.onloadeddata = () => { clearTimeout(timer); video.onerror = null; ok(video); };
-    video.onerror = () => { clearTimeout(timer); ko(new Error("Vidéo illisible" + (video.error ? ` (code ${video.error.code})` : ""))); };
-    video.src = url;
-  });
-}
-// Une seule vidéo de travail, réutilisée ; si le téléphone refuse, on libère les autres lecteurs et on réessaie
-let WORK = null;
-async function getWork(url, others = []){
-  if (WORK && WORK.dataset.url === url && WORK.readyState >= 2) return WORK;
-  if (WORK){ freePlayer(WORK); WORK.remove(); WORK = null; }
-  for (let attempt = 0; attempt < 2; attempt++){
-    const el = document.createElement("video");
-    try{
-      await loadOnce(el, url);
-      el.dataset.url = url; WORK = el; return el;
-    }catch(e){
-      freePlayer(el); el.remove();
-      if (attempt === 1) throw e;
-      others.forEach(freePlayer);
-      await new Promise(r => setTimeout(r, 500));
-    }
-  }
-}
-
-async function createLandmarker(){
-  const { PoseLandmarker, FilesetResolver } = await import(`${MP}/vision_bundle.mjs`);
-  const vision = await FilesetResolver.forVisionTasks(`${MP}/wasm`);
-  const opts = d => ({ baseOptions:{ modelAssetPath: MODEL, delegate: d }, runningMode:"VIDEO", numPoses:2, minPoseDetectionConfidence:0.4 });
-  try{ return await PoseLandmarker.createFromOptions(vision, opts("GPU")); }
-  catch{ return await PoseLandmarker.createFromOptions(vision, opts("CPU")); }
-}
-
-async function prepare(){
-  const msg = $("#prepMsg"), bar = $("#prepBar");
-  $("#prepBox").hidden = false; $("#prepBtn").disabled = true;
-  try{
-    cutV.pause();
-    const work = await getWork(S.url, [cutV]);
-    S.total = work.duration || S.total;
-    if (!S.end){ const seg = clampSegment(0, MAX_SECONDS, S.total); S.start = seg.start; S.end = seg.end; }
-    S.duration = S.end - S.start;
-    S.aspect = (work.videoWidth && work.videoHeight) ? work.videoWidth / work.videoHeight : 16/9;
-
-    // 1) Rythme
-    msg.textContent = t("audio"); bar.value = 0.02;
-    let tempo = null;
-    try{
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      const ctx = new Ctx();
-      const buf = await ctx.decodeAudioData(await S.file.arrayBuffer());
-      const a = Math.floor(buf.sampleRate * S.start), b = Math.min(buf.length, Math.floor(buf.sampleRate * S.end));
-      tempo = estimateTempo(buf.getChannelData(0).subarray(a, b), buf.sampleRate);
-      if (tempo) tempo.t0 += S.start;
-      ctx.close && ctx.close();
-    }catch{ tempo = null; }
-    if (tempo){ S.bpm = tempo.bpm; S.t0 = tempo.t0; S.E = tempo.E; S.Estart = S.start; } else { S.bpm = 180; S.t0 = S.start; S.E = null; }
-    S.t1 = S.t0;
-
-    // 2) Corps image par image
-    msg.textContent = t("loadingModel"); bar.value = 0.05;
-    const lm = await createLandmarker();
-    msg.textContent = t("poses");
-    S.frames = [];
-    const total = Math.floor(S.duration * FPS);
-    for (let i = 0; i <= total; i++){
-      const time = S.start + i / FPS;
-      await seek(work, Math.min(time, S.end - 0.01));
-      const r = lm.detectForVideo(work, Math.round(time * 1000) + 1);
-      const poses = (r.landmarks || []).map(p => p.map(q => [+q.x.toFixed(4), +q.y.toFixed(4), +(q.visibility ?? 1).toFixed(2)]));
-      S.frames.push({ t: time, poses: sortPoses(poses) });
-      bar.value = 0.05 + 0.95 * (i / Math.max(total, 1));
-    }
-    lm.close && lm.close();
-    computeAnkleRange();
-    if (!tempo) msg.textContent = t("noAudio");
-    openStep2();
-  }catch(e){
-    msg.textContent = t("err") + e.message;
-  }
-  $("#prepBtn").disabled = false;
-}
-$("#prepBtn").onclick = prepare;
-
-function computeAnkleRange(){
-  let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
-  for (const f of S.frames) for (const p of f.poses) for (const i of [27, 28]){
-    const q = p[i]; if (!q || q[2] < 0.3) continue;
-    x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]);
-  }
-  if (x1 <= x0){ x0 = 0; x1 = 1; } if (y1 <= y0){ y0 = 0; y1 = 1; }
-  const px = (x1 - x0) * 0.15 + 0.02, py = (y1 - y0) * 0.25 + 0.02;
-  S.ankleRange = { x0: x0 - px, x1: x1 + px, y0: y0 - py, y1: y1 + py };
-}
-
-// ---------- Étape 2 : rythme ----------
-const cal = $("#calVideo");
-keepInSegment(cal);
-function openStep2(){
-  $("#step2").hidden = false;
-  cal.src = S.url; cal.muted = false;
-  cal.onloadedmetadata = () => { cal.currentTime = S.start; };
-  $("#bpmTxt").textContent = S.bpm;
-  $("#tapMsg").textContent = "";
-  S.taps = [];
-  $("#step2").scrollIntoView({ behavior:"smooth" });
-  calLoop();
-}
-let calRaf = 0;
-function calLoop(){
-  cancelAnimationFrame(calRaf);
-  const tick = () => {
-    const k = countIndexAt(cal.currentTime, S.t1, S.bpm);
-    const n = countNumber(k);
-    const el = $("#calCount");
-    el.textContent = isPause(n) ? "" : n; el.classList.toggle("one", n === 1);
-    calRaf = requestAnimationFrame(tick);
-  };
-  tick();
-}
-const LAT = 0.15; // temps de réaction + retard du son sur téléphone
-// Grille des temps de la musique (si elle a été analysée)
-function gridPhase(){ return S.E ? S.Estart + refineTempo(S.E, S.bpm, 0.004).t0 : S.t0; }
-$("#oneBtn").onclick = () => {
-  S.t1 = snapToGrid(cal.currentTime - LAT, gridPhase(), S.bpm);
-  S.t0 = S.t1;
-  $("#tapMsg").textContent = t("oneOk");
-};
-$("#tapBtn").onclick = () => {
-  const now = cal.currentTime;
-  if (S.taps.length && (now < S.taps[S.taps.length - 1] || now - S.taps[S.taps.length - 1] > 2)) S.taps = [];
-  S.taps.push(now);
-  let bpm = tapTempo(S.taps);
-  if (!bpm){ $("#tapMsg").textContent = t("tapNeed"); return; }
-  // En salsa on compte chaque temps (≈ 150-220 BPM) : des frappes 2 fois trop lentes sont doublées
-  while (bpm < 125) bpm *= 2;
-  // Les frappes donnent le tempo approximatif ; la musique donne le tempo exact
-  let phase = S.taps[0] - LAT;
-  if (S.E){ const r = refineTempo(S.E, bpm, 0.06); bpm = r.bpm; phase = snapToGrid(S.taps[0] - LAT, S.Estart + r.t0, bpm); }
-  S.bpm = bpm; S.t1 = phase; S.t0 = S.t1;
-  $("#bpmTxt").textContent = S.bpm;
-  $("#tapMsg").textContent = t("tapOk");
-};
-document.querySelectorAll("[data-bpm]").forEach(b => b.onclick = () => {
-  const v = b.dataset.bpm;
-  S.bpm = v === "half" ? S.bpm / 2 : v === "double" ? S.bpm * 2 : S.bpm + Number(v);
-  S.bpm = Math.min(Math.max(S.bpm, 60), 260);
-  if (S.E && (v === "half" || v === "double")){
-    const r = refineTempo(S.E, S.bpm, 0.02);
-    S.bpm = r.bpm; S.t1 = snapToGrid(S.t1, S.Estart + r.t0, S.bpm); S.t0 = S.t1;
-  }
-  S.bpm = Math.round(S.bpm * 100) / 100;
-  $("#bpmTxt").textContent = S.bpm;
+let password = store.get("trio_pw", "");
+let S = store.get("dlg_settings", {
+  theme:"auto", mode:"chat", active:{claude:true, openai:true, gemini:true}, debate:true, judge:"claude",
+  opts:{ ratio:"720:1280", duration:"5", seconds:"60" },
 });
+if (S.active.perplexity === undefined) S.active.perplexity = true;
+if (!S.opts.format) S.opts.format = "square";
+if (!S.themeV3){ S.theme = "auto"; S.themeV3 = true; }
+let convs = store.get("dlg_convs", null);
+if (!convs){
+  convs = [];
+  const old = store.get("trio_turns", []);           // reprise de l'ancienne version
+  if (old.length) convs.push({ id:uid(), title: (old.find(t => t.q)?.q || "Conversation").slice(0, 48), updated:Date.now(), turns:old });
+}
+let curId = store.get("dlg_cur", null);
+let busy = false;
 
-// ---------- Analyse ----------
-function pointsAt(time){
-  const f = nearestFrame(S.frames, time);
-  if (!f) return {};
-  const out = {};
-  f.poses.slice(0, 2).forEach((p, i) => {
-    const pt = j => p[j] && p[j][2] > 0.3 ? [p[j][0], p[j][1]] : null;
-    out[i ? "B" : "A"] = { chevilleG: pt(27), chevilleD: pt(28), poignetG: pt(15), poignetD: pt(16), hancheG: pt(23), hancheD: pt(24) };
+function conv(){
+  let c = convs.find(c => c.id === curId);
+  if (!c){ c = { id:uid(), title:"", updated:Date.now(), turns:[] }; convs.unshift(c); curId = c.id; }
+  return c;
+}
+function saveSettings(){ store.set("dlg_settings", S); }
+function saveAll(){
+  const clean = convs.filter(c => c.turns.length).map(c => ({ ...c, pinned: !!c.pinned, turns: c.turns.map(t => {
+    if (t.type === "music") return { type:t.type, q:t.q, err:t.err, lost:!t.err };
+    if (t.type === "image") return { type:t.type, id:t.id, q:t.q, format:t.format, src:t.src, results:Object.fromEntries(Object.entries(t.results).map(([k, r]) =>
+      [k, r.pending ? { err:"Interrompu" } : { thumb:r.thumb, err:r.err }])) };
+    if (t.type === "video") return { type:t.type, q:t.q, url:t.url, err:t.err || (t.url ? undefined : "Interrompu") };
+    if (t.type === "summary") return { type:t.type, judge:t.judge, text:t.text, err:t.err || (t.text ? undefined : "Interrompu") };
+    return { q:t.q, userSent:t.userSent, files:t.files, answers:Object.fromEntries(Object.entries(t.answers).map(([k, a]) =>
+      [k, a.pending || a.streaming ? (a.text ? { text:a.text } : { err:"Interrompu" }) : { text:a.text, err:a.err }])) };
+  }) }));
+  store.set("dlg_convs", clean);
+  store.set("dlg_cur", curId);
+}
+
+// ==================== Mise en forme (Markdown simple et sûr) ====================
+function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function inline(s){
+  return s.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+          .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+          .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+          .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+}
+function md(src){
+  const blocks = [];
+  let s = esc(src || "").replace(/```[\w-]*\n?([\s\S]*?)(```|$)/g, (_, code) => { blocks.push(`<pre><code>${code}</code></pre>`); return `\u0000${blocks.length-1}\u0000`; });
+  const out = []; let list = null;
+  const close = () => { if (list){ out.push(`</${list}>`); list = null; } };
+  for (const line of s.split("\n")){
+    let m;
+    if (/^\u0000\d+\u0000$/.test(line.trim())){ close(); out.push(line.trim()); continue; }
+    if ((m = line.match(/^\s*[-*•] (.*)$/))){ if (list !== "ul"){ close(); out.push("<ul>"); list = "ul"; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+    if ((m = line.match(/^\s*\d+[.)] (.*)$/))){ if (list !== "ol"){ close(); out.push("<ol>"); list = "ol"; } out.push(`<li>${inline(m[1])}</li>`); continue; }
+    close();
+    if ((m = line.match(/^#{1,6} (.*)$/))){ out.push(`<h3>${inline(m[1])}</h3>`); continue; }
+    if (!line.trim()){ out.push("\u0001"); continue; }
+    out.push(`<p>${inline(line)}</p>`);
+  }
+  close();
+  return out.join("").replace(/\u0001/g, "").replace(/<\/p><p>/g, "</p><p>").replace(/\u0000(\d+)\u0000/g, (_, i) => blocks[i]);
+}
+
+// ==================== Affichage ====================
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 1600); }
+async function copy(text){ try{ await navigator.clipboard.writeText(text); toast("Copié ✓"); }catch{ toast("Copie impossible"); } }
+
+function effectiveTheme(){
+  if (S.theme === "light" || S.theme === "dark") return S.theme;
+  const h = new Date().getHours();
+  return h >= 7 && h < 20 ? "light" : "dark";          // automatique : blanc le jour, noir la nuit
+}
+function applyTheme(){
+  const th = effectiveTheme();
+  document.documentElement.dataset.theme = th;
+  $("#themeBtn").textContent = S.theme === "auto" ? "🌗" : S.theme === "dark" ? "🌙" : "☀️";
+  $("#themeBtn").title = S.theme === "auto" ? "Thème automatique (jour / nuit)" : S.theme === "dark" ? "Thème sombre" : "Thème clair";
+  document.querySelector('meta[name="theme-color"]').content = th === "dark" ? "#1f1e1d" : "#faf9f5";
+}
+setInterval(applyTheme, 60000);
+
+function convText(c){
+  return [c.title, ...c.turns.flatMap(t => [t.q || "", t.text || "", ...Object.values(t.answers || {}).map(a => a.text || "")])].join("\n");
+}
+function norm(x){ return String(x || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+function renderSide(){
+  const list = $("#convList"); list.innerHTML = "";
+  const qs = norm($("#searchInput").value.trim());
+  let items = convs.filter(c => c.turns.length).sort((a, b) => b.updated - a.updated);
+  if (qs) items = items.filter(c => norm(convText(c)).includes(qs));
+  if (!items.length){ list.innerHTML = `<div style="color:var(--muted);font-size:14px;padding:8px 10px">${qs ? "Aucun résultat." : "Aucune conversation pour l'instant."}</div>`; return; }
+  const pinned = items.filter(c => c.pinned), others = items.filter(c => !c.pinned);
+  $("#convLabel").hidden = pinned.length > 0;
+  const label = txt => { const d = document.createElement("div"); d.className = "side-label"; d.style.padding = "10px 8px 4px"; d.textContent = txt; list.appendChild(d); };
+  const ordered = [];
+  if (pinned.length){ ordered.push("📌 Épinglées", ...pinned); if (others.length) ordered.push("Récentes"); }
+  else ordered.push(...others);
+  if (pinned.length) ordered.push(...others);
+  for (const c of ordered){
+    if (typeof c === "string"){ label(c); continue; }
+    const el = document.createElement("div");
+    el.className = "conv" + (c.id === curId ? " on" : "");
+    let hit = "";
+    if (qs){
+      const txt = convText(c).slice((c.title || "").length + 1), i = norm(txt).indexOf(qs);
+      if (i >= 0) hit = txt.slice(Math.max(0, i - 20), i + 50).replace(/\s+/g, " ");
+    }
+    el.innerHTML = `<span class="t">${c.pinned ? '<span class="pin-ic">📌</span>' : ""}${esc(c.title || "Sans titre")}${hit ? `<span class="hit">…${esc(hit)}…</span>` : ""}</span><button class="more" title="Options">⋯</button>`;
+    el.onclick = e => { if (e.target.closest(".more")) return; openConv(c.id); };
+    el.querySelector(".more").onclick = () => convMenu(c);
+    list.appendChild(el);
+  }
+}
+function sheet(title, actions){
+  $("#sheetTitle").textContent = title;
+  const body = $("#sheetBody"); body.innerHTML = "";
+  for (const [label, fn, danger] of actions){
+    const b = document.createElement("button"); b.innerHTML = label; if (danger) b.className = "danger";
+    b.onclick = () => { closeSheet(); fn(); };
+    body.appendChild(b);
+  }
+  $("#sheet").hidden = false;
+}
+function closeSheet(){ $("#sheet").hidden = true; }
+$("#sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
+
+function togglePin(c){ c.pinned = !c.pinned; saveAll(); renderSide(); renderHeader(); toast(c.pinned ? "📌 Conversation épinglée" : "Conversation désépinglée"); }
+function renameConv(c){
+  const n = prompt("Nouveau nom de la conversation :", c.title || "");
+  if (n && n.trim()){ c.title = n.trim().slice(0, 60); saveAll(); renderSide(); renderHeader(); }
+}
+function deleteConv(c){
+  if (!confirm(`Supprimer « ${c.title || "Sans titre"} » ? C'est définitif.`)) return;
+  convs = convs.filter(x => x.id !== c.id);
+  if (curId === c.id) curId = null;
+  saveAll(); renderAll();
+}
+function convMenu(c){
+  sheet(c.title || "Sans titre", [
+    [c.pinned ? "📌 Désépingler" : "📌 Épingler", () => togglePin(c)],
+    ["✏️ Renommer", () => renameConv(c)],
+    ["⤓ Exporter en PDF", () => { const keep = curId; curId = c.id; exportPDF(); curId = keep; }],
+    ["🗑️ Supprimer", () => deleteConv(c), true],
+  ]);
+}
+function openConv(id){ curId = id; closeSide(); saveAll(); renderAll(); }
+
+function renderHeader(){
+  const c = conv();
+  $("#convTitle").textContent = (c.pinned ? "📌 " : "") + (c.title || "Nouvelle conversation");
+  $("#pinTop").hidden = !c.turns.length;
+  $("#pinTop").classList.toggle("on", !!c.pinned);
+  $("#pinTop").title = c.pinned ? "Désépingler" : "Épingler cette conversation";
+  $("#modePill").textContent = MODES[S.mode];
+}
+function renderMini(){
+  const m = $("#mini"); m.innerHTML = "";
+  if (S.mode === "chat"){
+    for (const [k, a] of Object.entries(AIS)){
+      const sp = document.createElement("span"); sp.textContent = a.label;
+      if (S.active[k]){ sp.className = "on"; sp.style.background = a.color; }
+      m.appendChild(sp);
+    }
+    if (S.debate){ const d = document.createElement("span"); d.textContent = "⚔️ Débat"; m.appendChild(d); }
+  } else if (S.mode === "video"){
+    m.innerHTML = `<span>🎬 Runway</span><span>${S.opts.ratio === "720:1280" ? "Vertical" : "Horizontal"}</span><span>${S.opts.duration} s</span>`;
+  } else if (S.mode === "image"){
+    m.innerHTML = `<span>🖼️ ChatGPT</span><span>🖼️ Gemini</span><span>${{ square:"Carré", portrait:"Vertical", landscape:"Horizontal" }[S.opts.format]}</span>`;
+  } else {
+    m.innerHTML = `<span>🎵 Musique</span><span>${S.opts.seconds >= 60 ? S.opts.seconds / 60 + " min" : S.opts.seconds + " s"}</span>`;
+  }
+  $("#input").placeholder = PLACEHOLDER[S.mode];
+}
+function renderMenu(){
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b.dataset.mode === S.mode));
+  document.querySelectorAll("#secAis .switch[data-ai]").forEach(b => b.classList.toggle("on", !!S.active[b.dataset.ai]));
+  $("#debateSw").classList.toggle("on", S.debate);
+  document.querySelectorAll("#judgeSeg button").forEach(b => b.classList.toggle("on", b.dataset.j === S.judge));
+  document.querySelectorAll("#menu .opt").forEach(b => b.classList.toggle("on", String(S.opts[b.dataset.k]) === b.dataset.v));
+  $("#secAis").hidden = S.mode !== "chat"; $("#secJudge").hidden = S.mode !== "chat";
+  $("#secVideo").hidden = S.mode !== "video"; $("#secMusic").hidden = S.mode !== "music"; $("#secImage").hidden = S.mode !== "image";
+}
+
+function hello(){
+  const h = new Date().getHours();
+  const word = h >= 18 || h < 5 ? "Bonsoir" : "Bonjour";
+  return `<div class="hello">
+    <div class="big-dots"><i style="background:var(--claude)"></i><i style="background:var(--openai)"></i><i style="background:var(--gemini)"></i><i style="background:var(--perplexity)"></i></div>
+    <h1>${word}, H</h1>
+    <p>Pose ta question : Claude, ChatGPT, Gemini et Perplexity te répondent ensemble.</p>
+    <div class="sugg">${SUGGESTIONS.map((s, i) => `<button data-s="${i}">${esc(s)}</button>`).join("")}</div>
+  </div>`;
+}
+
+function cardHTML(ti, id, a){
+  let body;
+  if (a.pending && !a.text) body = `<span class="thinking">Réfléchit…</span>`;
+  else if (a.err && !a.text) body = esc(a.err);
+  else body = md(a.text) + (a.err ? `<p style="color:#e5636b">${esc(a.err)}</p>` : "");
+  const tools = (!a.pending && !a.streaming) ? `<div class="tools">
+      ${a.text ? `<button class="tool" data-act="copy" title="Copier">⧉ Copier</button>` : ""}
+      <button class="tool" data-act="regen" title="Régénérer">↻</button>
+      ${a.text ? `<button class="tool" data-act="speak" title="Écouter">🔊</button><button class="tool" data-act="wa" title="Partager sur WhatsApp">WhatsApp</button><button class="tool" data-act="video" title="Envoyer vers la vidéo">→🎬</button><button class="tool" data-act="music" title="Envoyer vers la musique">→🎵</button>` : ""}
+    </div>` : "";
+  return `<div class="ans${a.err && !a.text ? " err" : ""}" style="--c:${AIS[id].color}" data-ti="${ti}" data-ai="${id}">
+    <div class="who"><i></i>${AIS[id].label}</div>
+    <div class="body${a.streaming ? " cursor" : ""}" id="b-${ti}-${id}">${body}</div>${tools}</div>`;
+}
+
+function renderFeed(){
+  const c = conv(); const inner = $("#feedInner");
+  if (!c.turns.length){ inner.innerHTML = hello(); return; }
+  const html = c.turns.map((t, ti) => {
+    if (t.type === "video" || t.type === "music") return mediaHTML(t);
+    if (t.type === "image") return imageHTML(t, ti);
+    if (t.type === "summary"){
+      const j = AIS[t.judge || "claude"];
+      const a = { text:t.text, err:t.err, pending:t.pending, streaming:t.streaming };
+      const body = a.pending && !a.text ? `<span class="thinking">${j.label} résume…</span>` : a.err && !a.text ? esc(a.err) : md(a.text);
+      return `<div class="turn"><div class="ans${a.err && !a.text ? " err" : ""}" style="--c:${j.color};border-color:${j.color}">
+        <div class="who"><i></i>✨ Résumé par ${j.label}</div>
+        <div class="body${t.streaming ? " cursor" : ""}" id="b-${ti}-sum">${body}</div>
+        ${t.text && !t.streaming ? `<div class="tools"><button class="tool" data-act="copysum" data-ti="${ti}">⧉ Copier</button><button class="tool" data-act="speaksum" data-ti="${ti}">🔊</button><button class="tool" data-act="wasum" data-ti="${ti}">WhatsApp</button></div>` : ""}
+      </div></div>`;
+    }
+    const ids = Object.keys(t.answers);
+    const q = t.q === REACT_Q ? "💬 Réagissez aux réponses des autres" : t.q;
+    const files = (t.files || []).map(f => f.thumb ? `<img src="${esc(f.thumb)}" alt="${esc(f.name)}" title="${esc(f.name)}">` : `<span class="f">${f.kind === "pdf" ? "📄" : "📝"} ${esc(f.name)}</span>`).join("");
+    return `<div class="turn">${files ? `<div class="qfiles">${files}</div>` : ""}<div class="q">${esc(q)}</div>
+      <div class="answers${ids.length > 1 ? " multi" : ""}" style="--n:${ids.length}">${ids.map(id => cardHTML(ti, id, t.answers[id])).join("")}</div></div>`;
+  }).join("");
+  const last = c.turns[c.turns.length - 1];
+  const done = last.answers ? Object.values(last.answers).filter(a => a.text && !a.streaming).length : 0;
+  const actions = (!busy && done >= 2) ? `<div class="actions"><button class="chip-btn" data-act="react">💬 Qu'ils réagissent</button><button class="chip-btn" data-act="sum">✨ Résumé</button></div>` : "";
+  inner.innerHTML = html + actions;
+}
+
+// Images : la version complète reste en mémoire (téléchargement), une version allégée est gardée dans l'historique
+const FULL = {};
+function imageHTML(t, ti){
+  const cards = Object.entries(t.results).map(([id, r]) => {
+    const key = `${t.id}-${id}`;
+    let body;
+    if (r.pending) body = `<div class="ph"><span class="thinking">${AIS[id].label} dessine…</span></div>`;
+    else if (r.err && !r.thumb) body = `<div class="ph" style="color:#e5636b">${esc(r.err)}</div>`;
+    else body = `<img src="${FULL[key] || r.thumb}" alt="Image ${esc(AIS[id].label)}" data-act="imgview" data-ti="${ti}" data-ai="${id}">`;
+    const tools = r.pending ? "" : `<div class="tools">${r.thumb ? `
+      <button class="tool" data-act="imgdl" data-ti="${ti}" data-ai="${id}">⤓ Télécharger</button>
+      <button class="tool" data-act="imgshare" data-ti="${ti}" data-ai="${id}">Partager</button>
+      <button class="tool" data-act="imgedit" data-ti="${ti}" data-ai="${id}">✏️ Retoucher</button>` : ""}
+      <button class="tool" data-act="imgregen" data-ti="${ti}" data-ai="${id}" title="Recommencer">↻${r.thumb ? "" : " Réessayer"}</button></div>`;
+    return `<div class="imgcard" style="--c:${AIS[id].color}"><div class="who"><i></i>${AIS[id].label}</div>${body}${tools}</div>`;
+  }).join("");
+  return `<div class="turn">${t.src ? `<img class="qimg" src="${t.src}" alt="Photo envoyée">` : ""}<div class="q">🖼️ ${esc(t.q)}</div><div class="imgs">${cards}</div></div>`;
+}
+const IMAGE_AIS = ["openai", "gemini"];
+async function runImage(t, id, image){
+  const r0 = t.results[id] = { pending:true };
+  renderFeed();
+  try{
+    const r = await post("/api/image", { ai:id, prompt:t.q, format:t.format, image });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || `Erreur ${r.status}`);
+    const full = `data:${d.mime};base64,${d.data}`;
+    FULL[`${t.id}-${id}`] = full;
+    const img = await loadImg(full);
+    t.results[id] = { thumb: shrink(img, 900, 0.8) };
+  }catch(e){ t.results[id] = { err:e.message }; }
+  if (r0 !== t.results[id]) { renderFeed(); saveAll(); }
+}
+async function sendImage(q){
+  const photo = pending.find(a => a.kind === "image");
+  pending = []; renderAtts();
+  const c = conv(); if (!c.title) c.title = "🖼️ " + q.slice(0, 44);
+  const t = { type:"image", id:uid(), q, format:S.opts.format, src: photo ? photo.thumb : undefined, results:{} };
+  c.turns.push(t); c.updated = Date.now();
+  busy = true; $("#sendBtn").disabled = true; renderSide(); renderHeader(); renderFeed(); scrollDown(); saveAll();
+  const image = photo ? { mime:photo.mime, data:photo.data } : null;
+  await Promise.all(IMAGE_AIS.map(id => runImage(t, id, image)));
+  busy = false; $("#sendBtn").disabled = false; renderFeed(); saveAll();
+}
+function imgFor(ti, id){
+  const t = conv().turns[ti]; if (!t) return null;
+  return FULL[`${t.id}-${id}`] || t.results[id]?.thumb || null;
+}
+async function imgFile(ti, id){
+  const src = imgFor(ti, id); if (!src) return null;
+  const blob = await (await fetch(src)).blob();
+  const ext = blob.type.includes("png") ? "png" : "jpg";
+  return new File([blob], `dialogue-${AIS[id].label.toLowerCase()}-${Date.now()}.${ext}`, { type: blob.type });
+}
+function mediaHTML(t){
+  const isV = t.type === "video";
+  let body;
+  if (t.err) body = `<div style="color:#e5636b">${esc(t.err)}</div>`;
+  else if (t.url && isV) body = `<video src="${esc(t.url)}" controls playsinline loop></video><a href="${esc(t.url)}" target="_blank" rel="noopener">Télécharger la vidéo</a> <span style="color:var(--muted);font-size:12px">(lien valable environ 24 h)</span>`;
+  else if (t.url) body = `<audio src="${esc(t.url)}" controls></audio><a href="${esc(t.url)}" download="dialogue-musique.mp3">Télécharger le MP3</a>`;
+  else if (t.lost) body = `<div style="color:var(--muted)">Musique non conservée après fermeture de l'appli.</div>`;
+  else body = `<span class="thinking">${isV ? "Runway tourne la vidéo (1 à 3 min)…" : "Composition en cours (jusqu'à 2 min)…"}</span>`;
+  return `<div class="turn"><div class="q">${esc(t.q)}</div><div class="ans media" style="--c:var(${isV ? "--video" : "--music"})">
+    <div class="who"><i></i>${isV ? "Runway · vidéo" : "Eleven Music · musique"}</div>${body}</div></div>`;
+}
+
+function renderAll(){ applyTheme(); renderSide(); renderHeader(); renderMini(); renderMenu(); renderFeed(); }
+function scrollDown(){ const f = $("#feed"); f.scrollTop = f.scrollHeight; }
+let rafPending = false;
+function paintStream(ti, key, text){
+  const el = document.getElementById(`b-${ti}-${key}`);
+  if (el) el.innerHTML = md(text);
+  const f = $("#feed");
+  if (f.scrollHeight - f.scrollTop - f.clientHeight < 160) f.scrollTop = f.scrollHeight;
+}
+
+// ==================== Échanges avec le serveur ====================
+function needLogin(){ store.set("trio_pw", ""); password = ""; $("#pw").value = ""; $("#login").hidden = false; }
+
+async function streamAsk(ai, messages, onText, system){
+  const r = await fetch("/api/chat", {
+    method:"POST", headers:{ "content-type":"application/json" },
+    body: JSON.stringify({ password, ai, messages, stream:true, system }),
   });
-  return out;
-}
-async function analyze(){
-  cal.pause();
-  const msg = $("#anaMsg"), bar = $("#anaBar");
-  $("#anaBox").hidden = false; $("#anaBtn").disabled = true;
-  try{
-    S.list = countsToAnalyze(S.end, S.t1, S.bpm, 200, S.start).filter(c => !isPause(c.n)); // on ne compte pas 4 et 8
-    msg.textContent = t("frames");
-    const work = await getWork(S.url, [cutV, cal]);
-    const W = 320, H = Math.round(W / S.aspect);
-    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
-    const cx = cv.getContext("2d");
-    const comptes = [];
-    for (let i = 0; i < S.list.length; i++){
-      const c = S.list[i];
-      await seek(work, Math.min(c.t, S.end - 0.01));
-      cx.drawImage(work, 0, 0, W, H);
-      comptes.push({ i, n: c.n, m: c.m, t: +c.t.toFixed(2), points: pointsAt(c.t), image: cv.toDataURL("image/jpeg", 0.6) });
-      bar.value = 0.3 * (i + 1) / S.list.length;
-    }
-    // Envoi par petits paquets de 16 comptes (2 mesures), 2 à la fois.
-    // Les fenêtres s'ouvrent dès le premier paquet prêt ; la suite arrive pendant qu'on regarde.
-    const CHUNK = 16, PAR = 2, parts = [];
-    for (let i = 0; i < comptes.length; i += CHUNK) parts.push(comptes.slice(i, i + CHUNK));
-    const failed = [];
-    const t0 = Date.now();
-    let done = 0, opened = false;
-    const src = lang;
-    S.analysis = { figure_principale:null, comptes:[], incertain:null };
-    S.langs = { [src]: true }; S.srcLang = src; S.busy = true;
-    const live = $("#liveMsg");
-    const show = (extra = "") => {
-      const sec = Math.round((Date.now() - t0) / 1000);
-      const txt = `${t("ai")} ${done}/${parts.length} · ${sec} s${extra}`;
-      msg.textContent = txt;
-      if (opened){ live.hidden = done >= parts.length; live.textContent = "⏳ " + txt; }
-    };
-    const tick = setInterval(() => show(), 1000);
-    function mergePart(data, offset){
-      const A = S.analysis;
-      A.figure_principale = A.figure_principale || data.figure_principale;
-      if (data.incertain && Object.values(data.incertain).some(Boolean)) A.incertain = A.incertain || data.incertain;
-      (data.comptes || []).forEach((c, j) => A.comptes.push({ ...c, i: (Number.isInteger(c.i) ? c.i : j) + offset }));
-      lastK = null;
-    }
-    async function sendPart(pi){
-      const offset = pi * CHUNK;
-      const req = JSON.stringify({ password, lang: src, role: $("#role").value, danse: $("#danse").value,
-        comptes: parts[pi].map(c => ({ ...c, i: c.i - offset })) });
-      let r, data;
-      for (let a = 0; a < 3; a++){
-        if (a) { show(` · ↻ ${a + 1}/3`); await new Promise(ok => setTimeout(ok, 6000 * a)); }
-        const ctl = new AbortController();
-        const kill = setTimeout(() => ctl.abort(), 150000);
-        r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" }, body: req, signal: ctl.signal }).catch(() => null);
-        clearTimeout(kill);
-        data = r ? await r.json().catch(() => ({ error:`Erreur ${r.status}` })) : { error:"Pas de réponse (connexion ou délai dépassé)" };
-        if (r && (r.ok || ![500, 502, 503, 504].includes(r.status))) break;
-      }
-      if (r && r.status === 401){ store.set("dd_pw", ""); password = ""; $("#login").hidden = false; throw new Error(data.error || "401"); }
-      done++; bar.value = 0.3 + 0.7 * done / parts.length;
-      if (!r || !r.ok){ failed.push(data.error || `Erreur ${r ? r.status : ""}`); show(); return; }
-      mergePart(data, offset);
-      if (!opened){ opened = true; bar.value = 1; openStep3(); }
-      show();
-    }
-    show();
-    try{
-      let next = 0;
-      const worker = async () => { while (next < parts.length){ const pi = next++; await sendPart(pi); } };
-      await Promise.all(Array.from({ length: Math.min(PAR, parts.length) }, worker));
-    } finally { clearInterval(tick); S.busy = false; live.hidden = true; }
-    if (!opened) throw new Error(failed[0] || "Erreur");
-    S.analysis.comptes.sort((x, y) => x.i - y.i);
-    updateTips();
-    if (failed.length){
-      const w = $("#tUnsure");
-      w.textContent = `⚠️ ${t("partial")}` + (w.textContent ? " " + w.textContent : "");
-    }
-    if (lang !== S.srcLang) translateTo(lang);
-  }catch(e){
-    msg.textContent = t("err") + e.message;
-    if (!cal.getAttribute("src")){ cal.addEventListener("loadeddata", () => { cal.currentTime = S.start; }, { once:true }); cal.src = S.url; }
+  if (!r.ok){
+    const d = await r.json().catch(() => ({ error:`Erreur ${r.status}` }));
+    if (r.status === 401) needLogin();
+    throw new Error(d.error || `Erreur ${r.status}`);
   }
-  $("#anaBtn").disabled = false;
+  if (!r.body || !r.body.getReader){ const t = await r.text(); onText(t); return t; }
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let text = "";
+  for (;;){
+    const { value, done } = await reader.read();
+    if (done) break;
+    text += dec.decode(value, { stream:true });
+    onText(text);
+  }
+  return text;
 }
-$("#anaBtn").onclick = analyze;
 
-// ---------- Étape 3 : les 4 fenêtres ----------
-const v = $("#v"), c3 = $("#c3"), c4 = $("#c4");
-keepInSegment(v);
-// Le téléphone libère ses lecteurs vidéo avec un peu de retard : on réessaie si la vidéo refuse de se charger
-async function loadMainVideo(){
-  for (let a = 0; a < 5; a++){
-    if (a){ freePlayer(v); await new Promise(ok => setTimeout(ok, 600 * a)); }
-    else await new Promise(ok => setTimeout(ok, 250));
-    try{
-      await loadOnce(v, S.url);
-      v.muted = false;
-      v.playbackRate = Number($("#speedRange").value) || 1;
-      if (v.currentTime < S.start || v.currentTime > S.end) v.currentTime = S.start;
-      return;
-    }catch(e){ /* on réessaie */ }
+function historyFor(id, question, force, upto){
+  const turns = conv().turns.slice(0, upto ?? conv().turns.length);
+  const msgs = [];
+  for (const t of turns){
+    if (!t.answers) continue;
+    const mine = t.answers[id];
+    if (!mine || !mine.text) continue;
+    msgs.push({ role:"user", content: t.userSent?.[id] || t.q });
+    msgs.push({ role:"assistant", content: mine.text });
   }
-  $("#cap1").textContent = t("err") + "Vidéo illisible";
-}
-// Recadrage fixe pour tout le passage : bande du haut du corps et bande des pieds, sur toute la largeur
-function computeBands(){
-  const ys = idx => {
-    const v = [];
-    for (const f of S.frames) for (const p of f.poses.slice(0, 2)) for (const i of idx){ const q = p[i]; if (q && q[2] > 0.3) v.push(q[1]); }
-    v.sort((a, b) => a - b);
-    return v.length ? [v[Math.floor(v.length * 0.05)], v[Math.floor(v.length * 0.95)]] : null;
-  };
-  const band = (r, padTop, padBot, def) => {
-    if (!r) return def;
-    const y0 = Math.max(0, r[0] - padTop), y1 = Math.min(1, r[1] + padBot);
-    return y1 - y0 > 0.12 ? { x: 0, y: y0, w: 1, h: y1 - y0 } : def;
-  };
-  S.band3 = band(ys([11, 12, 13, 14, 15, 16, 23, 24]), 0.06, 0.04, { x:0, y:0.15, w:1, h:0.45 }); // épaules → hanches
-  S.band4 = band(ys([25, 26, 27, 28, 29, 30, 31, 32]), 0.04, 0.05, { x:0, y:0.6, w:1, h:0.4 });  // genoux → pieds
-}
-function openStep3(){
-  $("#step1").hidden = true; $("#step2").hidden = true; $("#step3").hidden = false;
-  document.documentElement.style.setProperty("--ar", `${S.aspect}`);
-  freePlayer(cal); freePlayer(cutV); freePlayer(WORK);
-  loadMainVideo();
-  computeBands();
-  const base = 720;
-  for (const [cv, box] of [[c3, S.band3], [c4, S.band4]]){
-    const r = (box.w * S.aspect) / box.h; // largeur / hauteur réelles du recadrage
-    cv.width = base; cv.height = Math.round(base / r);
-    cv.style.aspectRatio = `${r}`;
+  let content = question;
+  const chatTurns = turns.filter(t => t.answers);
+  if ((S.debate || force) && chatTurns.length){
+    const last = chatTurns[chatTurns.length - 1];
+    const others = Object.entries(last.answers).filter(([k, a]) => k !== id && a.text).map(([k, a]) => `--- Réponse de ${AIS[k].label} ---\n${a.text}`);
+    if (others.length) content = `Voici ce que les autres IA ont répondu à la question précédente :\n\n${others.join("\n\n")}\n\n--- Nouvelle demande de l'utilisateur ---\n${question}`;
   }
-  setView(S.view);
-  updateTips();
-  window.scrollTo(0, 0);
-  drawLoop();
+  msgs.push({ role:"user", content });
+  return msgs;
 }
-function entryForIndex(k){
-  const pos = S.list.findIndex(c => c.k === k);
-  if (pos < 0 || !S.analysis?.comptes) return null;
-  return S.analysis.comptes.find(c => c.i === pos) || S.analysis.comptes[pos] || null;
-}
-// Traduire une analyse déjà faite dans une autre langue (seulement quand on la demande)
-async function translateTo(lg){
-  if (!S.analysis || S.langs?.[lg] || S.translating || S.busy) return;
-  S.translating = true;
-  const live = $("#liveMsg"); live.hidden = false; live.textContent = "⏳ " + t("translating");
-  const from = S.srcLang;
-  const strip = o => (o && o[from]) ? { [from]: o[from] } : null;
-  const A = S.analysis;
-  const data = { figure_principale: strip(A.figure_principale), incertain: strip(A.incertain),
-    comptes: A.comptes.map(c => ({ i: c.i, figure: strip(c.figure), pieds: strip(c.pieds), mains: strip(c.mains), corps: strip(c.corps) })) };
+
+async function runAnswer(t, ti, id, messages){
+  const a = t.answers[id] = { pending:true, streaming:false, text:"" };
   try{
-    const r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" },
-      body: JSON.stringify({ password, action:"translate", from, lang: lg, data }) });
-    const out = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(out.error || r.status);
-    const put = (o, n) => { if (o && n && n[lg]) o[lg] = n[lg]; };
-    put(A.figure_principale, out.figure_principale); put(A.incertain, out.incertain);
-    (out.comptes || []).forEach(n => {
-      const c = A.comptes.find(x => x.i === n.i);
-      if (c) ["figure", "pieds", "mains", "corps"].forEach(k => put(c[k], n[k]));
+    a.text = await streamAsk(id, messages, txt => {
+      if (!a.streaming){ a.streaming = true; a.pending = false; renderFeed(); }
+      a.text = txt; paintStream(ti, id, txt);
     });
-    S.langs[lg] = true;
-    live.hidden = true;
-  }catch(e){ live.textContent = t("err") + e.message; }
-  S.translating = false;
-  if (S.langs[lg] && lang !== lg) translateTo(lang);
-  lastK = null; updateTips();
-}
-function updateTips(){
-  const a = S.analysis || {};
-  $("#tUnsure").textContent = pick(a.incertain, lang);
-  lastK = null;
+    if (!a.text) a.err = "Réponse vide";
+  }catch(e){ a.err = e.message; }
+  a.pending = false; a.streaming = false;
 }
 
-function setView(view){
-  S.view = view;
-  document.querySelectorAll("#viewSeg button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
-  $("#tabs").hidden = view !== "1";
-  $("#grid").classList.toggle("single", view === "1");
-  document.querySelectorAll(".panel").forEach(p => p.hidden = view === "1" && p.dataset.p !== S.panel);
-  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.p === S.panel));
+async function send(preset, force){
+  const isPreset = typeof preset === "string";
+  let q = (isPreset ? preset : $("#input").value).trim();
+  const atts = isPreset ? [] : pending.slice();
+  if (!q && atts.length) q = "Analyse ce que je t'envoie et dis-moi l'essentiel.";
+  if (!q || busy) return;
+  if (!isPreset && S.mode !== "chat"){
+    $("#input").value = ""; autosize();
+    return S.mode === "video" ? sendVideo(q) : S.mode === "image" ? sendImage(q) : sendMusic(q);
+  }
+  const ids = Object.keys(AIS).filter(k => S.active[k]);
+  if (!ids.length){ toast("Active au moins une IA (bouton ＋)"); return; }
+  const c = conv();
+  if (!c.title) c.title = q.slice(0, 48);
+  if (!isPreset){ $("#input").value = ""; autosize(); stopMic(); }
+  busy = true; $("#sendBtn").disabled = true;
+  // Fichiers texte : ajoutés au message ; photos et PDF : joints à part
+  const textPart = atts.filter(a => a.kind === "text").map(a => `\n\n--- Fichier : ${a.name} ---\n${a.text}`).join("");
+  const binFiles = atts.filter(a => a.kind !== "text").map(a => ({ name:a.name, mime:a.mime, data:a.data }));
+  const fullQ = q + textPart;
+  const payloads = Object.fromEntries(ids.map(id => [id, historyFor(id, fullQ, force)]));
+  ids.forEach(id => { if (binFiles.length) payloads[id].at(-1).files = binFiles; });
+  const t = { q, answers:{}, userSent:{}, files: atts.map(a => ({ name:a.name, kind:a.kind, thumb:a.thumb })) };
+  t._files = binFiles;
+  if (!isPreset){ pending = []; renderAtts(); }
+  ids.forEach(id => { t.answers[id] = { pending:true }; t.userSent[id] = payloads[id].at(-1).content; });
+  c.turns.push(t); c.updated = Date.now();
+  const ti = c.turns.length - 1;
+  renderSide(); renderHeader(); renderFeed(); scrollDown();
+  await Promise.all(ids.map(id => runAnswer(t, ti, id, payloads[id]).then(() => { renderFeed(); saveAll(); })));
+  busy = false; $("#sendBtn").disabled = false; renderFeed(); saveAll();
 }
-document.querySelectorAll("#viewSeg button").forEach(b => b.onclick = () => setView(b.dataset.view));
-document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => { S.panel = b.dataset.p; setView("1"); });
-$("#speedRange").oninput = e => {
-  const r = Number(e.target.value);
-  v.playbackRate = r;
-  $("#speedTxt").textContent = `${String(r).replace(".", ",")}×`;
+
+async function regenerate(ti, id){
+  if (busy) return;
+  const c = conv(), t = c.turns[ti];
+  const q = t.q;
+  const msgs = historyFor(id, t.userSent?.[id] && q !== REACT_Q ? t.userSent[id].split("\n\n--- Nouvelle demande de l'utilisateur ---\n").pop() : q, q === REACT_Q, ti);
+  if (t._files && t._files.length) msgs.at(-1).files = t._files;
+  busy = true; $("#sendBtn").disabled = true;
+  t.userSent = t.userSent || {}; t.userSent[id] = msgs.at(-1).content;
+  renderFeed();
+  await runAnswer(t, ti, id, msgs);
+  busy = false; $("#sendBtn").disabled = false; renderFeed(); saveAll();
+}
+
+async function summarize(){
+  if (busy) return;
+  const c = conv();
+  const last = [...c.turns].reverse().find(t => t.answers);
+  if (!last) return;
+  const parts = Object.entries(last.answers).filter(([k, a]) => a.text).map(([k, a]) => `--- ${AIS[k].label} ---\n${a.text}`);
+  const question = last.q === REACT_Q ? "(réactions des IA entre elles)" : last.q;
+  const content = `Question de Hamidine : ${question}\n\nVoici les réponses de plusieurs IA :\n\n${parts.join("\n\n")}\n\nFais une synthèse claire en français simple, d'environ 10 lignes (12 maximum), avec ces 4 parties et ces titres en gras :\n**✅ Points d'accord** : ce que toutes disent.\n**⚖️ Différences** : qui dit quoi quand elles ne sont pas d'accord (cite le nom de l'IA).\n**📌 À retenir** : les infos concrètes utiles (noms, dates, chiffres, prix, sources citées).\n**👉 Mon conseil** : ce que Hamidine doit faire, et la toute prochaine étape.\nReste neutre : ne favorise pas ta propre réponse.`;
+  const judge = S.judge;
+  const t = { type:"summary", judge, pending:true, text:"" };
+  c.turns.push(t); const ti = c.turns.length - 1;
+  busy = true; $("#sendBtn").disabled = true; renderFeed(); scrollDown();
+  try{
+    t.text = await streamAsk(judge, [{ role:"user", content }], txt => {
+      if (!t.streaming){ t.streaming = true; t.pending = false; renderFeed(); }
+      t.text = txt; paintStream(ti, "sum", txt);
+    }, "Pour cette demande précise (un résumé), tu peux aller jusqu'à 12 lignes, avec les 4 parties demandées.");
+  }catch(e){ t.err = e.message; }
+  t.pending = false; t.streaming = false; busy = false; $("#sendBtn").disabled = false; renderFeed(); saveAll();
+}
+
+async function post(url, body){
+  const r = await fetch(url, { method:"POST", headers:{ "content-type":"application/json" }, body: JSON.stringify({ password, ...body }) });
+  if (r.status === 401) needLogin();
+  return r;
+}
+async function sendVideo(q){
+  const c = conv(); if (!c.title) c.title = "🎬 " + q.slice(0, 44);
+  const t = { type:"video", q }; c.turns.push(t); c.updated = Date.now();
+  busy = true; $("#sendBtn").disabled = true; renderSide(); renderHeader(); renderFeed(); scrollDown(); saveAll();
+  try{
+    const r = await post("/api/runway", { action:"create", prompt:q, ratio:S.opts.ratio, duration:S.opts.duration });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || `Erreur ${r.status}`);
+    for (let i = 0; i < 120; i++){
+      await new Promise(ok => setTimeout(ok, 5000));
+      const s2 = await post("/api/runway", { action:"status", id:d.id });
+      const st = await s2.json();
+      if (!s2.ok) throw new Error(st.error || `Erreur ${s2.status}`);
+      if (st.status === "SUCCEEDED"){ t.url = st.url; break; }
+      if (st.status === "FAILED") throw new Error(st.error || "Runway n'a pas pu créer la vidéo");
+    }
+    if (!t.url) throw new Error("Trop long : réessaie plus tard");
+  }catch(e){ t.err = e.message; }
+  busy = false; $("#sendBtn").disabled = false; renderFeed(); saveAll();
+}
+async function sendMusic(q){
+  const c = conv(); if (!c.title) c.title = "🎵 " + q.slice(0, 44);
+  const t = { type:"music", q }; c.turns.push(t); c.updated = Date.now();
+  busy = true; $("#sendBtn").disabled = true; renderSide(); renderHeader(); renderFeed(); scrollDown();
+  try{
+    const r = await post("/api/music", { prompt:q, seconds:S.opts.seconds });
+    if (!r.ok){ const d = await r.json().catch(() => ({})); throw new Error(d.error || `Erreur ${r.status}`); }
+    t.url = URL.createObjectURL(await r.blob());
+  }catch(e){ t.err = e.message; }
+  busy = false; $("#sendBtn").disabled = false; renderFeed(); saveAll();
+}
+
+// ==================== Pièces jointes ====================
+let pending = [];
+const MAX_FILE = 3 * 1024 * 1024;
+function readAs(file, how){ return new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r[how](file); }); }
+function loadImg(src){ return new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = ko; i.src = src; }); }
+function shrink(img, max, q){
+  const k = Math.min(1, max / Math.max(img.width, img.height));
+  const c = document.createElement("canvas"); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", q);
+}
+async function addFiles(list){
+  for (const f of list){
+    if (pending.length >= 4){ toast("4 fichiers maximum par message"); break; }
+    try{
+      if (f.type.startsWith("image/")){
+        const img = await loadImg(await readAs(f, "readAsDataURL"));
+        const big = shrink(img, 1600, 0.82);
+        pending.push({ kind:"image", name:f.name || "photo.jpg", mime:"image/jpeg", data:big.split(",")[1], thumb:shrink(img, 160, 0.7) });
+      } else if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)){
+        if (f.size > MAX_FILE){ toast("PDF trop lourd (3 Mo maximum)"); continue; }
+        pending.push({ kind:"pdf", name:f.name, mime:"application/pdf", data:(await readAs(f, "readAsDataURL")).split(",")[1] });
+      } else if (f.type.startsWith("text/") || /\.(txt|csv|md)$/i.test(f.name)){
+        const text = (await readAs(f, "readAsText")).slice(0, 60000);
+        pending.push({ kind:"text", name:f.name, text });
+      } else toast(`« ${f.name} » : format non pris en charge (photo, PDF ou texte)`);
+    }catch{ toast(`Impossible de lire « ${f.name} »`); }
+  }
+  renderAtts();
+}
+function renderAtts(){
+  const box = $("#atts");
+  box.hidden = !pending.length;
+  box.innerHTML = pending.map((a, i) => `<div class="att">${a.thumb ? `<img src="${a.thumb}" alt="">` : `<div class="ic">${a.kind === "pdf" ? "📄" : "📝"}</div>`}<span>${esc(a.name)}</span><button data-rm="${i}" title="Retirer">✕</button></div>`).join("");
+}
+$("#clipBtn").onclick = () => $("#fileInput").click();
+$("#fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
+$("#atts").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (b){ pending.splice(+b.dataset.rm, 1); renderAtts(); } });
+document.addEventListener("paste", e => { const files = [...(e.clipboardData?.files || [])]; if (files.length){ e.preventDefault(); addFiles(files); } });
+
+// ==================== Dictée et lecture à voix haute ====================
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null;
+function stopMic(){ if (rec){ try{ rec.stop(); }catch{} } }
+if (!SR) $("#micBtn").hidden = true;
+$("#micBtn").onclick = () => {
+  if (rec){ stopMic(); return; }
+  rec = new SR(); rec.lang = "fr-FR"; rec.interimResults = true; rec.continuous = true;
+  const base = input.value ? input.value.replace(/\s*$/, " ") : "";
+  rec.onresult = e => {
+    let txt = "";
+    for (let i = 0; i < e.results.length; i++) txt += e.results[i][0].transcript;
+    input.value = base + txt; autosize();
+  };
+  rec.onend = () => { rec = null; $("#micBtn").classList.remove("on"); };
+  rec.onerror = ev => { if (ev.error === "not-allowed") toast("Autorise le micro pour D.IA.logue"); };
+  try{ rec.start(); $("#micBtn").classList.add("on"); toast("🎤 Parle… touche à nouveau pour arrêter"); }catch{ rec = null; }
 };
+function plain(text){
+  return String(text || "").replace(/\[([^\]]+)\]\((https?:[^)]+)\)/g, "$1").replace(/[*_`#>]/g, "").replace(/\[(web:)?\d+\]/g, "").replace(/\n{2,}/g, ". ");
+}
+function speak(text){
+  if (!("speechSynthesis" in window)){ toast("Lecture vocale indisponible sur cet appareil"); return; }
+  if (speechSynthesis.speaking){ speechSynthesis.cancel(); return; }
+  const u = new SpeechSynthesisUtterance(plain(text));
+  u.lang = "fr-FR";
+  const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.startsWith("fr"));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+  toast("🔊 Lecture… touche 🔊 à nouveau pour arrêter");
+}
 
-// Barre des comptes
-function currentK(){ return countIndexAt(v.currentTime, S.t1, S.bpm); }
-document.querySelectorAll("#counts .n").forEach(b => b.onclick = () => {
-  const k = currentK(); const start = k - (countNumber(k) - 1);
-  v.currentTime = Math.max(S.start, timeOfIndex(start + Number(b.dataset.n) - 1, S.t1, S.bpm) + 0.01);
+// ==================== Partage WhatsApp ====================
+function shareWA(text, who){
+  const wa = String(text || "").replace(/\*\*([^*]+)\*\*/g, "*$1*").replace(/^#{1,6} /gm, "");
+  const msg = `${wa}\n\n— ${who} via D.IA.logue`;
+  window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank");
+}
+
+// ==================== Export PDF ====================
+function exportPDF(){
+  const c = conv();
+  if (!c.turns.length){ toast("Rien à exporter pour l'instant"); return; }
+  const parts = c.turns.map(t => {
+    if (t.type === "summary") return `<div class="a sum"><h4>✨ Résumé par ${AIS[t.judge || "claude"].label}</h4>${md(t.text || t.err || "")}</div>`;
+    if (t.type === "image") return `<div class="q">🖼️ ${esc(t.q)}</div>` + Object.entries(t.results).map(([id, r]) => `<div class="a"><h4>${AIS[id].label}</h4>${r.thumb ? `<img src="${FULL[`${t.id}-${id}`] || r.thumb}" style="max-width:100%;border-radius:8px">` : esc(r.err || "")}</div>`).join("");
+    if (t.type === "video" || t.type === "music") return `<div class="q">${esc(t.q)}</div><div class="a"><h4>${t.type === "video" ? "🎬 Vidéo" : "🎵 Musique"}</h4>${t.url && t.type === "video" ? `<a href="${esc(t.url)}">${esc(t.url)}</a>` : "(média)"}</div>`;
+    const q = t.q === REACT_Q ? "Réagissez aux réponses des autres" : t.q;
+    return `<div class="q">${esc(q)}</div>` + Object.entries(t.answers).map(([id, a]) => `<div class="a"><h4 style="color:${{claude:"#c4613f",openai:"#0d8a6a",gemini:"#3a73d6",perplexity:"#168a99"}[id]}">${AIS[id].label}</h4>${md(a.text || a.err || "")}</div>`).join("");
+  }).join("");
+  const date = new Date().toLocaleDateString("fr-FR", { day:"numeric", month:"long", year:"numeric" });
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>${esc(c.title || "Conversation")} — D.IA.logue</title>
+<style>body{font:11.5pt/1.5 -apple-system,Segoe UI,Roboto,sans-serif;color:#1f1e1d;max-width:760px;margin:24px auto;padding:0 16px}
+h1{font-size:18pt;margin:0}.meta{color:#6d6b64;margin:4px 0 22px}.q{background:#ece9e0;border-radius:12px;padding:8px 14px;margin:22px 0 10px;font-weight:600}
+.a{border:1px solid #e2dfd5;border-radius:12px;padding:8px 14px;margin:8px 0;break-inside:avoid}.a h4{margin:4px 0 6px;font-size:11pt}.sum{border-color:#d4a72c}
+a{color:#168a99;word-break:break-all}pre{white-space:pre-wrap}@media print{body{margin:0 auto}}</style></head>
+<body><h1>${esc(c.title || "Conversation")}</h1><div class="meta">D.IA.logue · ${date}</div>${parts}
+<script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`;
+  const w = window.open("", "_blank");
+  if (!w){ toast("Autorise les fenêtres pour exporter"); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+$("#exportBtn").onclick = exportPDF;
+$("#pinTop").onclick = () => togglePin(conv());
+
+function backup(){
+  saveAll();
+  const data = { app:"D.IA.logue", version:3, date:new Date().toISOString(), conversations: store.get("dlg_convs", []) };
+  const blob = new Blob([JSON.stringify(data)], { type:"application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `dialogue-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  toast(`💾 ${data.conversations.length} conversation(s) sauvegardée(s)`);
+}
+async function restore(file){
+  try{
+    const data = JSON.parse(await file.text());
+    const list = Array.isArray(data) ? data : data.conversations;
+    if (!Array.isArray(list)) throw new Error();
+    let added = 0;
+    for (const c of list){
+      if (!c || !Array.isArray(c.turns)) continue;
+      const ex = convs.find(x => x.id === c.id);
+      if (ex){ if ((c.updated || 0) > (ex.updated || 0)) Object.assign(ex, c); }
+      else { convs.push(c); added++; }
+    }
+    saveAll(); renderAll();
+    toast(`📂 Restauration terminée : ${added} nouvelle(s) conversation(s)`);
+  }catch{ toast("Ce fichier n'est pas une sauvegarde D.IA.logue"); }
+}
+$("#backupBtn").onclick = backup;
+$("#restoreBtn").onclick = () => $("#restoreInput").click();
+$("#restoreInput").onchange = e => { const f = e.target.files[0]; if (f) restore(f); e.target.value = ""; };
+$("#searchInput").addEventListener("input", renderSide);
+
+// ==================== Événements ====================
+const input = $("#input");
+function autosize(){ input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; }
+input.addEventListener("input", autosize);
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey && window.matchMedia("(min-width:861px)").matches){ e.preventDefault(); send(); }
 });
-$("#prevBar").onclick = () => { const k = currentK(); v.currentTime = Math.max(S.start, timeOfIndex(k - (countNumber(k) - 1) - 8, S.t1, S.bpm) + 0.01); };
-$("#nextBar").onclick = () => { const k = currentK(); v.currentTime = Math.min(S.end - 0.05, timeOfIndex(k - (countNumber(k) - 1) + 8, S.t1, S.bpm) + 0.01); };
-$("#restart").onclick = () => location.reload();
-$("#otherPart").onclick = () => {
-  v.pause(); S.analysis = null;
-  $("#step3").hidden = true; $("#step2").hidden = true; $("#step1").hidden = false; $("#prepBox").hidden = true; $("#anaBox").hidden = true;
-  if (S.end < S.total - 0.5){ $("#cutStart").value = S.start + 60; updateCut(); }
-  if (!cutV.getAttribute("src")){ cutV.onloadedmetadata = null; cutV.addEventListener("loadeddata", () => { cutV.currentTime = S.start; }, { once:true }); cutV.src = S.url; }
-  else cutV.currentTime = S.start;
-  window.scrollTo(0, 0);
+$("#sendBtn").onclick = () => send();
+
+$("#feedInner").addEventListener("click", async e => {
+  const s = e.target.closest("[data-s]");
+  if (s){ input.value = SUGGESTIONS[+s.dataset.s]; autosize(); input.focus(); return; }
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const act = b.dataset.act;
+  if (act === "react") return send(REACT_Q, true);
+  if (act.startsWith("img")){
+    const ti = +b.dataset.ti, id = b.dataset.ai, t = conv().turns[ti];
+    if (act === "imgview" || act === "imgdl"){
+      const f = await imgFile(ti, id); if (!f) return;
+      const u = URL.createObjectURL(f);
+      if (act === "imgview") return window.open(u, "_blank");
+      const a = document.createElement("a"); a.href = u; a.download = f.name; a.click(); return;
+    }
+    if (act === "imgshare"){
+      const f = await imgFile(ti, id); if (!f) return;
+      if (navigator.canShare && navigator.canShare({ files:[f] })) return navigator.share({ files:[f], text:t.q }).catch(() => {});
+      const a = document.createElement("a"); a.href = URL.createObjectURL(f); a.download = f.name; a.click();
+      return toast("Image téléchargée : envoie-la ensuite sur WhatsApp");
+    }
+    if (act === "imgregen"){ if (busy) return; busy = true; await runImage(t, id, null); busy = false; return; }
+    if (act === "imgedit"){
+      const src = imgFor(ti, id); if (!src) return;
+      const img = await loadImg(src);
+      const big = shrink(img, 1600, 0.85);
+      pending = [{ kind:"image", name:"image.jpg", mime:"image/jpeg", data:big.split(",")[1], thumb:shrink(img, 160, 0.7) }];
+      renderAtts(); S.mode = "image"; saveSettings(); renderMini(); renderMenu(); renderHeader();
+      input.value = ""; input.placeholder = "Dis ce qu'il faut changer (ex. : mets le fond en bleu nuit)…"; input.focus();
+      return;
+    }
+  }
+  if (act === "sum") return summarize();
+  if (act === "copysum") return copy(conv().turns[+b.dataset.ti].text);
+  if (act === "speaksum") return speak(conv().turns[+b.dataset.ti].text);
+  if (act === "wasum") return shareWA(conv().turns[+b.dataset.ti].text, "Résumé");
+  const card = b.closest(".ans"); const ti = +card.dataset.ti, id = card.dataset.ai;
+  const a = conv().turns[ti].answers[id];
+  if (act === "copy") return copy(a.text);
+  if (act === "speak") return speak(a.text);
+  if (act === "wa") return shareWA(a.text, AIS[id].label);
+  if (act === "regen") return regenerate(ti, id);
+  if (act === "video" || act === "music"){ S.mode = act; saveSettings(); renderMini(); renderMenu(); renderHeader(); input.value = a.text.slice(0, 1000); autosize(); input.focus(); }
+});
+
+// Menu ＋
+$("#plusBtn").onclick = e => { e.stopPropagation(); $("#menu").hidden = !$("#menu").hidden; renderMenu(); };
+document.addEventListener("click", e => { if (!$("#menu").hidden && !e.target.closest("#menu") && !e.target.closest("#plusBtn")) $("#menu").hidden = true; });
+document.querySelectorAll("#modeSeg button").forEach(b => b.onclick = () => { S.mode = b.dataset.mode; saveSettings(); renderMenu(); renderMini(); renderHeader(); });
+document.querySelectorAll("#secAis .switch[data-ai]").forEach(b => b.onclick = () => { S.active[b.dataset.ai] = !S.active[b.dataset.ai]; saveSettings(); renderMenu(); renderMini(); });
+$("#debateSw").onclick = () => { S.debate = !S.debate; saveSettings(); renderMenu(); renderMini(); };
+document.querySelectorAll("#judgeSeg button").forEach(b => b.onclick = () => { S.judge = b.dataset.j; saveSettings(); renderMenu(); });
+document.querySelectorAll("#menu .opt").forEach(b => b.onclick = () => { S.opts[b.dataset.k] = b.dataset.v; saveSettings(); renderMenu(); renderMini(); });
+
+// Barre latérale
+function openSide(){ document.body.classList.add("side-open"); $("#overlay").hidden = false; }
+function closeSide(){ document.body.classList.remove("side-open"); $("#overlay").hidden = true; }
+$("#menuBtn").onclick = openSide; $("#overlay").onclick = closeSide; $("#closeSide").onclick = closeSide;
+function newConv(){
+  if (busy) return;
+  const c = convs.find(x => x.id === curId);
+  if (c && !c.turns.length){ closeSide(); input.focus(); return; }
+  const n = { id:uid(), title:"", updated:Date.now(), turns:[] }; convs.unshift(n); curId = n.id;
+  closeSide(); renderAll(); input.focus();
+}
+$("#newBtn").onclick = newConv; $("#newTop").onclick = newConv;
+$("#themeBtn").onclick = () => {
+  S.theme = { auto:"light", light:"dark", dark:"auto" }[S.theme] || "auto";
+  saveSettings(); applyTheme();
+  toast(S.theme === "auto" ? "🌗 Automatique : clair le jour, sombre la nuit" : S.theme === "dark" ? "🌙 Toujours sombre" : "☀️ Toujours clair");
 };
-$("#recal").onclick = () => { v.pause(); $("#step3").hidden = true; $("#step1").hidden = false; openStep2(); };
+$("#logoutBtn").onclick = () => { if (confirm("Se déconnecter de D.IA.logue sur cet appareil ?")) needLogin(); };
 
-// Dessin
-const COLORS = ["#d4a72c", "#4fa3ff"];
-function drawSkeleton(ctx, pose, color, box, W, H){
-  const X = p => (p[0] - box.x) / box.w * W, Y = p => (p[1] - box.y) / box.h * H;
-  ctx.strokeStyle = color; ctx.lineWidth = Math.max(2, W / 200); ctx.lineCap = "round";
-  for (const [a, b] of BONES){
-    const p = pose[a], q = pose[b];
-    if (!p || !q || p[2] < 0.3 || q[2] < 0.3) continue;
-    ctx.beginPath(); ctx.moveTo(X(p), Y(p)); ctx.lineTo(X(q), Y(q)); ctx.stroke();
-  }
-  ctx.fillStyle = color;
-  for (const i of [15, 16, 27, 28]){
-    const p = pose[i]; if (!p || p[2] < 0.3) continue;
-    ctx.beginPath(); ctx.arc(X(p), Y(p), Math.max(4, W / 110), 0, 7); ctx.fill();
-  }
-}
-function label(ctx, text, x, y, size, color, bg){
-  ctx.font = `600 ${size}px -apple-system, Segoe UI, Roboto, sans-serif`;
-  const w = ctx.measureText(text).width;
-  if (bg){ ctx.fillStyle = bg; ctx.fillRect(x - 6, y - size, w + 12, size * 1.35); }
-  ctx.fillStyle = color; ctx.fillText(text, x, y);
-}
-function drawFoot(ctx, x, y, isLeft, color, n, r){
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.beginPath(); ctx.ellipse(0, 0, r * 0.55, r, 0, 0, 7);
-  ctx.lineWidth = 2; ctx.strokeStyle = color;
-  if (isLeft){ ctx.stroke(); } else { ctx.fillStyle = color; ctx.globalAlpha = 0.55; ctx.fill(); ctx.globalAlpha = 1; ctx.stroke(); }
-  ctx.fillStyle = "#fff"; ctx.font = `600 ${Math.round(r * 0.9)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(String(n), 0, 1);
-  ctx.restore();
-}
-
-const FEET = [25, 26, 27, 28, 29, 30, 31, 32];
-// Cadre de zoom lissé (pas de tremblement) et toujours dans l'image
-const BOXES = {};
-function smoothBox(key, target, fallback){
-  const tgt = target || BOXES[key] || fallback;
-  const w = Math.min(1, tgt.w), h = Math.min(1, tgt.h);
-  const t2 = { w, h, x: Math.min(Math.max(tgt.x, 0), 1 - w), y: Math.min(Math.max(tgt.y, 0), 1 - h) };
-  const cur = BOXES[key];
-  BOXES[key] = cur ? { x: cur.x + (t2.x - cur.x) * 0.12, y: cur.y + (t2.y - cur.y) * 0.12, w: cur.w + (t2.w - cur.w) * 0.12, h: cur.h + (t2.h - cur.h) * 0.12 } : t2;
-  return BOXES[key];
-}
-function zoomDraw(ctx, box, W, H){
-  const vw = v.videoWidth, vh = v.videoHeight;
-  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
-  ctx.drawImage(v, box.x * vw, box.y * vh, box.w * vw, box.h * vh, 0, 0, W, H);
-}
-let lastK = null, raf = 0;
-function drawLoop(){
-  cancelAnimationFrame(raf);
-  const tick = () => { try{ draw(); }catch(e){ /* image pas prête */ } raf = requestAnimationFrame(tick); };
-  tick();
-}
-function draw(){
-  if (!v.videoWidth) return;
-  const time = v.currentTime;
-  const k = countIndexAt(time, S.t1, S.bpm);
-  const n = countNumber(k), m = barNumber(k) - (S.list.length ? barNumber(S.list[0].k) : 1) + 1;
-  const f = nearestFrame(S.frames, time);
-  const poses = f ? f.poses : [];
-  const e = entryForIndex(isPause(n) ? k - 1 : k);
-  const full = { x:0, y:0, w:1, h:1 };
-
-  // Fenêtre 1 : le compte par-dessus la vidéo
-  {
-    const bd = $("#badge");
-    const txt = isPause(n) ? "" : String(n);
-    if (bd.textContent !== txt){ bd.textContent = txt; bd.classList.toggle("one", n === 1); }
-  }
-
-  // Fenêtres 3 et 4 : simple recadrage fixe de la vraie vidéo (pas de zoom qui bouge)
-  for (const [cv, box] of [[c3, S.band3], [c4, S.band4]]){
-    const ctx = cv.getContext("2d");
-    zoomDraw(ctx, box, cv.width, cv.height);
-    if (!isPause(n)) label(ctx, String(n), 14, 44, 34, "#fff", "rgba(0,0,0,.6)");
-  }
-
-  // Textes (seulement quand le compte change)
-  if (k !== lastK){
-    lastK = k;
-    document.querySelectorAll("#counts .n").forEach(b => b.classList.toggle("on", Number(b.dataset.n) === n));
-    $("#barTxt").textContent = `${t("bar")} ${m}${isPause(n) ? "" : " · " + n} · ${S.bpm} BPM`;
-    $("#figTxt").textContent = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
-    const none = `<span class="muted">${t("notAnalyzed")}</span>`;
-    const esc = s => String(s || "").replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
-    const fig = pick(e?.figure, lang) || pick(S.analysis?.figure_principale, lang);
-    const sh = isPause(n) ? n - 1 : n;
-    $("#desc").innerHTML = (fig ? `<div class="fig">${esc(fig)}<small>${esc(t("bar"))} ${m} · ${sh}</small></div>` : "")
-      + (e ? [["feet", e.pieds, "🦶"], ["hands", e.mains, "🙌"], ["body", e.corps, "🔄"]]
-          .map(([key, val, ico]) => `<div class="blk"><b>${ico} ${esc(t(key))}</b>${esc(pick(val, lang))}</div>`).join("") : none);
-    $("#cap3").innerHTML = e ? `<b>${esc(t("hands"))} :</b> ${esc(pick(e.mains, lang))}` : none;
-    $("#cap4").innerHTML = e ? `<b>${esc(t("feet"))} :</b> ${esc(pick(e.pieds, lang))}` : none;
-  }
-}
+// Connexion
+$("#pwBtn").onclick = () => { password = $("#pw").value.trim(); store.set("trio_pw", password); $("#login").hidden = true; };
+$("#pw").addEventListener("keydown", e => { if (e.key === "Enter") $("#pwBtn").click(); });
+$("#pwEye").onclick = () => { const f = $("#pw"); f.type = f.type === "password" ? "text" : "password"; };
 
 // Démarrage
-applyLang();
 if (!password) $("#login").hidden = false;
+if (!convs.find(c => c.id === curId)) curId = (convs.slice().sort((a, b) => b.updated - a.updated)[0] || {}).id || null;
+renderAll(); scrollDown();
 if ("serviceWorker" in navigator){ navigator.serviceWorker.register("/sw.js").catch(() => {}); }
 </script>
 </body>
