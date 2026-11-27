@@ -39,29 +39,38 @@ const FORMAT_TPL = `Réponds UNIQUEMENT avec un JSON valide, sans texte autour, 
 - "incertain" : ce qui n'a pas pu être vu clairement, ou une chaîne vide dans les 3 langues si tout est clair.
 - Pas de conseils généraux : seulement la description des actions, compte par compte.`;
 
-const VIDEO_FORMAT = `Mission : décrire ce passage de façon EXTRÊMEMENT PRÉCISE, puis écrire une description pour une IA qui génère des vidéos, afin qu'elle refasse exactement la même figure avec d'AUTRES danseurs.
-
-Règles de précision (c'est le plus important, prends autant de mots qu'il faut, jusqu'à 1000) :
+const PRECISION = `Règles de précision (c'est le plus important) :
 - Gauche et droite sont TOUJOURS celles du danseur lui-même, jamais celles de l'image. Si un danseur est face à la caméra, sa main droite est à gauche de l'image.
-- Pour chaque demi-temps ou groupe de demi-temps, dis :
+- Dis à chaque moment :
   - les prises de mains : quelle main du cavalier tient quelle main de la cavalière (ex. « main gauche du cavalier dans la main droite de la cavalière »), prise simple ou croisée, mains lâchées ;
   - la hauteur et la place de CHAQUE bras : le long du corps, à la taille, à hauteur d'épaule, au-dessus de la tête, derrière la nuque, derrière le dos, tendu, plié ;
-  - les rotations : qui tourne, sens (vers sa droite / vers sa gauche, horaire / antihoraire vu du dessus), combien (quart de tour, demi-tour, tour complet), sous quel bras ;
-  - les déplacements et les places : face à face, côte à côte, elle à sa droite, elle passe derrière lui, il passe devant elle, changement de place, orientation par rapport à la caméra ;
+  - les rotations : qui tourne, sens (vers sa droite / vers sa gauche), combien (quart de tour, demi-tour, tour complet), sous quel bras ;
+  - les déplacements et les places : face à face, côte à côte, elle à sa droite, elle passe derrière lui, changement de place, orientation par rapport à la caméra ;
   - les pieds : pied d'appui, pas en avant / arrière / côté / sur place.
-- Si une image ne permet pas de voir (mains cachées, flou), dis-le clairement au lieu d'inventer.
+- Suis toujours le MÊME couple (le plus grand et le plus net à l'image), ignore les autres personnes.
+- Si une image ne permet pas de voir (mains cachées, flou), dis-le clairement au lieu d'inventer.`;
+
+const DETAIL_FORMAT = `Mission : décrire ce morceau de passage de façon EXTRÊMEMENT PRÉCISE, temps par temps.
+${PRECISION}
 
 Réponds UNIQUEMENT avec un JSON valide, sans texte autour :
 {
-  "figure": "nom de la figure en français (ex. Setenta)",
-  "decryptage": "le décryptage détaillé en français, compte par compte, une ligne par temps (et entre deux temps quand il se passe quelque chose), commençant par « 1 : », « 1 et : », « 2 : », etc. Pour ROLE. Écris « Cavalier : … / Cavalière : … » quand les deux font quelque chose de différent. Retours à la ligne avec \\n.",
-  "prompt": "la description pour l'IA vidéo, en anglais"
+  "figure": "nom probable de la figure en français, ou chaîne vide",
+  "lignes": "une ligne par temps (et entre deux temps quand il se passe quelque chose), commençant par l'instant et le compte, ex. « 0,00 s · 1 : … ». Pour ROLE. Écris « Cavalier : … / Cavalière : … » quand les deux font quelque chose de différent. Retours à la ligne avec \\n. 40 mots maximum par ligne."
+}`;
+
+const PROMPT_FORMAT = `Mission : à partir de ce décryptage très précis, écris une description pour une IA qui génère des vidéos, afin qu'elle refasse exactement la même chorégraphie avec d'AUTRES danseurs.
+
+Réponds UNIQUEMENT avec un JSON valide, sans texte autour :
+{
+  "figure": "nom de la figure en français (ex. Setenta), ou « Enchaînement » si incertain",
+  "prompt": "la description en anglais"
 }
 
 Règles pour "prompt" (en anglais, 300 à 600 mots) :
-- Commence par : « Photorealistic video, real people, not animated. » Puis la scène : un couple de danseurs de salsa, DIFFÉRENTS des personnes de la vidéo (décris des vêtements simples et neutres, ne décris jamais le visage des vraies personnes), une salle de danse lumineuse, caméra fixe en plan large, corps entiers visibles, pas de coupure, pas de zoom.
+- Commence par : « Photorealistic video, real people, not animated. » Puis la scène : un couple de danseurs de salsa, des personnes inventées (vêtements simples et neutres, ne décris jamais le visage de vraies personnes), une salle de danse lumineuse, caméra fixe en plan large, corps entiers visibles, pas de coupure, pas de zoom.
 - Indique la musique (salsa à X BPM) et que chaque pas tombe sur le temps.
-- Puis la chorégraphie sous forme de chronologie avec les secondes : « 0.0–0.9 s (counts 1-2-3): … ». Même niveau de détail que le décryptage : prises de mains, hauteur des bras, sens et nombre de tours, places des danseurs. Utilise « the man's left hand », « the woman's right hand », « turns clockwise to her right », etc.
+- Puis la chorégraphie sous forme de chronologie avec les secondes : « 0.0–0.9 s (counts 1-2-3): … ». Garde TOUS les détails du décryptage : prises de mains, hauteur des bras, sens et nombre de tours, places des danseurs. Utilise « the man's left hand », « the woman's right hand », « turns clockwise to her right », etc. Ne reprends pas les passages marqués incertains comme des certitudes : choisis le mouvement le plus logique pour cette figure.
 - Termine par : « Smooth continuous movement, realistic hands and arms, correct anatomy, hands never merge or disappear. »`;
 const LANGS = { fr: "français", en: "anglais", es: "espagnol" };
 function formatFor(lg){
@@ -91,22 +100,30 @@ module.exports = async (req, res) => {
   }
 
 
-  // Décryptage très détaillé d'un passage + description pour une IA vidéo
-  if (body.action === "videoprompt") {
-    const frames = Array.isArray(body.frames) ? body.frames.slice(0, 80) : [];
+  // Recréer en vidéo IA, étape 1 : décryptage très précis d'un morceau (envoyé en parallèle par l'appli)
+  if (body.action === "vpdetail") {
+    const frames = Array.isArray(body.frames) ? body.frames.slice(0, 40) : [];
     if (!frames.length) return res.status(400).json({ error: "Aucune image reçue" });
     const roleTxt = body.role === "follower" ? "la cavalière" : body.role === "leader" ? "le cavalier" : "les deux danseurs";
-    const parts = [{ text: `Danse : ${body.danse || "salsa on1"}. Tempo : ${Number(body.bpm) || 180} BPM. Durée du passage : ${Number(body.duree) || 10} s.
-Tu reçois ${frames.length} images dans l'ordre, plusieurs par temps : « 1 » = sur le temps 1, « 1 +1/3 » = un tiers du temps après le 1, etc. Chaque image a aussi l'instant t en secondes depuis le début du passage. Les comptes 4 et 8 sont des pauses.
+    const parts = [{ text: `Danse : ${body.danse || "salsa on1"}. Tempo : ${Number(body.bpm) || 180} BPM.
+Tu reçois ${frames.length} images dans l'ordre, plusieurs par temps : « 1 » = sur le temps 1, « 1 +1/3 » = un tiers du temps après le 1, etc. Chaque image a l'instant t en secondes depuis le début du passage. Les comptes 4 et 8 sont des pauses.
 Regarde les images une par une ET l'enchaînement entre elles pour reconstituer le mouvement exact.` }];
     if (Array.isArray(body.hints) && body.hints.length)
-      parts.push({ text: "Première analyse rapide de ce passage (peut contenir des erreurs, vérifie avec les images) :\n" + body.hints.slice(0, 40).join("\n") });
+      parts.push({ text: "Première analyse rapide (peut contenir des erreurs, vérifie avec les images) :\n" + body.hints.slice(0, 20).join("\n") });
     for (const f of frames) {
       parts.push({ text: `t=${Number(f.t).toFixed(2)} s · compte ${String(f.label || "").slice(0, 20)}` });
       if (f.image) parts.push({ inlineData: { mimeType: "image/jpeg", data: String(f.image).replace(/^data:image\/\w+;base64,/, "") } });
     }
-    parts.push({ text: VIDEO_FORMAT.replace("ROLE", roleTxt) });
-    return runAI(parts, res, 20000);
+    parts.push({ text: DETAIL_FORMAT.replace("ROLE", roleTxt) });
+    return runAI(parts, res, 5000);
+  }
+  // Étape 2 : la description pour l'IA vidéo, à partir du texte (rapide)
+  if (body.action === "vpprompt") {
+    const txt = String(body.decryptage || "").slice(0, 20000);
+    if (!txt) return res.status(400).json({ error: "Décryptage vide" });
+    const parts = [{ text: `Danse : ${body.danse || "salsa on1"}. Tempo : ${Number(body.bpm) || 180} BPM. Durée : ${Number(body.duree) || 8} s. Figures repérées : ${String(body.figures || "").slice(0, 300)}.\n\nDécryptage :\n${txt}` },
+      { text: PROMPT_FORMAT }];
+    return runAI(parts, res, 4000);
   }
 
   const { role, danse, comptes } = body;

@@ -923,18 +923,41 @@ async function makeVideoPrompt(){
       const e = entryForIndex(kk); if (!e) continue; // eslint-disable-line
       hints.push(`compte ${countNumber(kk)} : ${pick(e.figure, lang)} | pieds : ${pick(e.pieds, lang)} | mains : ${pick(e.mains, lang)} | ${pick(e.corps, lang)}`);
     }
-    const t1 = Date.now();
-    const tick = setInterval(() => { msg.textContent = `🧠 L'IA décrit chaque image en détail… ${Math.round((Date.now() - t1) / 1000)} s (1 à 3 minutes)`; }, 1000);
-    let r, data;
+    // Morceaux d'environ une mesure, analysés en parallèle (beaucoup plus rapide qu'un seul gros envoi)
+    const per = sub * 8, groups = [];
+    for (let i = 0; i < frames.length; i += per) groups.push(frames.slice(Math.max(0, i - 1), i + per));
+    const t1 = Date.now(), results = new Array(groups.length);
+    let done = 0, step2 = false;
+    const tick = setInterval(() => {
+      const sec = Math.round((Date.now() - t1) / 1000);
+      msg.textContent = step2 ? `✍️ Écriture de la description vidéo… ${sec} s` : `🧠 L'IA décrit chaque image en détail… ${done}/${groups.length} · ${sec} s`;
+    }, 1000);
+    const call = async (payload, ms) => {
+      let last = "Erreur";
+      for (let a = 0; a < 2; a++){
+        const ctl = new AbortController(); const kill = setTimeout(() => ctl.abort(), ms);
+        const r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" }, signal: ctl.signal,
+          body: JSON.stringify({ password, danse: $("#danse").value, role: $("#role").value, bpm: Math.round(S.bpm), ...payload }) }).catch(() => null);
+        clearTimeout(kill);
+        const d = r ? await r.json().catch(() => ({ error:`Erreur ${r.status}` })) : { error:"Pas de réponse (connexion ou délai dépassé)" };
+        if (r && r.ok) return d;
+        last = d.error || last;
+        if (r && ![500, 502, 503, 504].includes(r.status)) break;
+      }
+      throw new Error(last);
+    };
+    let data;
     try{
-      const ctl = new AbortController(); const kill = setTimeout(() => ctl.abort(), 290000);
-      r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" }, signal: ctl.signal,
-        body: JSON.stringify({ password, action:"videoprompt", role: $("#role").value, danse: $("#danse").value,
-          bpm: Math.round(S.bpm), duree: +(t9 - t0).toFixed(1), frames, hints }) }).catch(() => null);
-      clearTimeout(kill);
-      data = r ? await r.json().catch(() => ({ error:`Erreur ${r.status}` })) : { error:"Pas de réponse (connexion ou délai dépassé)" };
+      let next = 0;
+      const worker = async () => { while (next < groups.length){ const gi = next++;
+        results[gi] = await call({ action:"vpdetail", frames: groups[gi], hints: gi === 0 ? hints : [] }, 200000); done++; } };
+      await Promise.all(Array.from({ length: Math.min(3, groups.length) }, worker));
+      const detail = results.map(r => r.lignes || "").join("\n").replace(/\\n/g, "\n").trim();
+      const figures = [...new Set(results.map(r => r.figure).filter(Boolean))].join(", ");
+      step2 = true;
+      const p = await call({ action:"vpprompt", decryptage: detail, figures, duree: +(t9 - t0).toFixed(1) }, 120000);
+      data = { figure: p.figure || figures, decryptage: detail, prompt: p.prompt || "" };
     } finally { clearInterval(tick); }
-    if (!r || !r.ok) throw new Error(data.error || "Erreur");
     $("#vpFig").textContent = data.figure || "";
     $("#vpDetail").textContent = data.decryptage || "";
     $("#vpPrompt").value = data.prompt || "";
