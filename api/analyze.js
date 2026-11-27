@@ -38,6 +38,31 @@ const FORMAT_TPL = `Réponds UNIQUEMENT avec un JSON valide, sans texte autour, 
 - "figure" : nom de la figure en cours (pas de base, tour à droite, cross body, enchufla, etc.).
 - "incertain" : ce qui n'a pas pu être vu clairement, ou une chaîne vide dans les 3 langues si tout est clair.
 - Pas de conseils généraux : seulement la description des actions, compte par compte.`;
+
+const VIDEO_FORMAT = `Mission : décrire ce passage de façon EXTRÊMEMENT PRÉCISE, puis écrire une description pour une IA qui génère des vidéos, afin qu'elle refasse exactement la même figure avec d'AUTRES danseurs.
+
+Règles de précision (c'est le plus important, prends autant de mots qu'il faut, jusqu'à 1000) :
+- Gauche et droite sont TOUJOURS celles du danseur lui-même, jamais celles de l'image. Si un danseur est face à la caméra, sa main droite est à gauche de l'image.
+- Pour chaque demi-temps ou groupe de demi-temps, dis :
+  - les prises de mains : quelle main du cavalier tient quelle main de la cavalière (ex. « main gauche du cavalier dans la main droite de la cavalière »), prise simple ou croisée, mains lâchées ;
+  - la hauteur et la place de CHAQUE bras : le long du corps, à la taille, à hauteur d'épaule, au-dessus de la tête, derrière la nuque, derrière le dos, tendu, plié ;
+  - les rotations : qui tourne, sens (vers sa droite / vers sa gauche, horaire / antihoraire vu du dessus), combien (quart de tour, demi-tour, tour complet), sous quel bras ;
+  - les déplacements et les places : face à face, côte à côte, elle à sa droite, elle passe derrière lui, il passe devant elle, changement de place, orientation par rapport à la caméra ;
+  - les pieds : pied d'appui, pas en avant / arrière / côté / sur place.
+- Si une image ne permet pas de voir (mains cachées, flou), dis-le clairement au lieu d'inventer.
+
+Réponds UNIQUEMENT avec un JSON valide, sans texte autour :
+{
+  "figure": "nom de la figure en français (ex. Setenta)",
+  "decryptage": "le décryptage détaillé en français, compte par compte, une ligne par temps (et entre deux temps quand il se passe quelque chose), commençant par « 1 : », « 1 et : », « 2 : », etc. Pour ROLE. Écris « Cavalier : … / Cavalière : … » quand les deux font quelque chose de différent. Retours à la ligne avec \\n.",
+  "prompt": "la description pour l'IA vidéo, en anglais"
+}
+
+Règles pour "prompt" (en anglais, 300 à 600 mots) :
+- Commence par : « Photorealistic video, real people, not animated. » Puis la scène : un couple de danseurs de salsa, DIFFÉRENTS des personnes de la vidéo (décris des vêtements simples et neutres, ne décris jamais le visage des vraies personnes), une salle de danse lumineuse, caméra fixe en plan large, corps entiers visibles, pas de coupure, pas de zoom.
+- Indique la musique (salsa à X BPM) et que chaque pas tombe sur le temps.
+- Puis la chorégraphie sous forme de chronologie avec les secondes : « 0.0–0.9 s (counts 1-2-3): … ». Même niveau de détail que le décryptage : prises de mains, hauteur des bras, sens et nombre de tours, places des danseurs. Utilise « the man's left hand », « the woman's right hand », « turns clockwise to her right », etc.
+- Termine par : « Smooth continuous movement, realistic hands and arms, correct anatomy, hands never merge or disappear. »`;
 const LANGS = { fr: "français", en: "anglais", es: "espagnol" };
 function formatFor(lg){
   return FORMAT_TPL.replace(/"LG"/g, `"${lg}"`) + `\n- Écris tous les textes en ${LANGS[lg]}, uniquement dans la clé "${lg}".`;
@@ -65,6 +90,25 @@ module.exports = async (req, res) => {
     return runAI([{ text: prompt }], res);
   }
 
+
+  // Décryptage très détaillé d'un passage + description pour une IA vidéo
+  if (body.action === "videoprompt") {
+    const frames = Array.isArray(body.frames) ? body.frames.slice(0, 80) : [];
+    if (!frames.length) return res.status(400).json({ error: "Aucune image reçue" });
+    const roleTxt = body.role === "follower" ? "la cavalière" : body.role === "leader" ? "le cavalier" : "les deux danseurs";
+    const parts = [{ text: `Danse : ${body.danse || "salsa on1"}. Tempo : ${Number(body.bpm) || 180} BPM. Durée du passage : ${Number(body.duree) || 10} s.
+Tu reçois ${frames.length} images dans l'ordre, plusieurs par temps : « 1 » = sur le temps 1, « 1 +1/3 » = un tiers du temps après le 1, etc. Chaque image a aussi l'instant t en secondes depuis le début du passage. Les comptes 4 et 8 sont des pauses.
+Regarde les images une par une ET l'enchaînement entre elles pour reconstituer le mouvement exact.` }];
+    if (Array.isArray(body.hints) && body.hints.length)
+      parts.push({ text: "Première analyse rapide de ce passage (peut contenir des erreurs, vérifie avec les images) :\n" + body.hints.slice(0, 40).join("\n") });
+    for (const f of frames) {
+      parts.push({ text: `t=${Number(f.t).toFixed(2)} s · compte ${String(f.label || "").slice(0, 20)}` });
+      if (f.image) parts.push({ inlineData: { mimeType: "image/jpeg", data: String(f.image).replace(/^data:image\/\w+;base64,/, "") } });
+    }
+    parts.push({ text: VIDEO_FORMAT.replace("ROLE", roleTxt) });
+    return runAI(parts, res, 20000);
+  }
+
   const { role, danse, comptes } = body;
   if (!Array.isArray(comptes) || comptes.length === 0) return res.status(400).json({ error: "Aucune image reçue" });
   if (comptes.length > 48) return res.status(400).json({ error: "48 comptes maximum" });
@@ -84,7 +128,7 @@ Utilise l'enchaînement des images pour comprendre les mouvements entre deux com
   return runAI(parts, res);
 };
 
-async function runAI(parts, res) {
+async function runAI(parts, res, maxTokens) {
   // Fournisseur d'IA : Claude ou Gemini (variable AI_PROVIDER), l'autre sert de secours s'il a une clé
   const hasClaude = !!(process.env.ANTHROPIC_API_KEY || "").trim();
   const hasGemini = !!(process.env.GEMINI_API_KEY || "").trim();
@@ -96,7 +140,7 @@ async function runAI(parts, res) {
   const errors = [];
   for (const provider of order) {
     try {
-      const text = provider === "claude" ? await askClaude(parts) : await askGemini(parts);
+      const text = provider === "claude" ? await askClaude(parts, maxTokens) : await askGemini(parts);
       return res.status(200).json(extractJson(text));
     } catch (e) {
       errors.push(`${provider === "claude" ? "Claude" : "Gemini"} : ${e.message}`);
@@ -135,14 +179,14 @@ async function askGemini(parts) {
   throw new Error(last);
 }
 
-async function askClaude(parts) {
+async function askClaude(parts, maxTokens) {
   // Même contenu que pour Gemini, converti au format Claude
   const content = parts.map((p) => p.inlineData
     ? { type: "image", source: { type: "base64", media_type: p.inlineData.mimeType, data: p.inlineData.data } }
     : { type: "text", text: p.text });
   const body = JSON.stringify({
     model: process.env.CLAUDE_MODEL || "claude-sonnet-5-5",
-    max_tokens: 16000,
+    max_tokens: maxTokens || 16000,
     system: METHODE,
     messages: [{ role: "user", content }],
   });

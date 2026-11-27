@@ -234,6 +234,29 @@
         <button class="btn ghost" id="otherPart" data-t="otherPart"></button>
       </div>
     </div>
+
+    <div class="card" id="vpCard" style="margin-top:14px">
+      <div class="ptitle" style="font-size:18px">🎬 Recréer en vidéo IA</div>
+      <div class="muted" style="margin:6px 0 10px">Mets la vidéo du haut au début de la figure (par exemple le 1 de la setenta), choisis la durée, puis appuie sur le bouton. L'IA décrit tout en détail, image par image, puis écrit la description à coller dans le Studio vidéo de D.IA.logue.</div>
+      <div class="row">
+        <span>Durée :</span>
+        <select id="vpDur"><option value="5">5 s</option><option value="8" selected>8 s</option><option value="10">10 s</option></select>
+        <button class="btn gold" id="vpBtn">🎬 Créer le prompt vidéo</button>
+      </div>
+      <div class="muted" id="vpMsg" style="margin-top:8px"></div>
+      <div id="vpOut" hidden style="margin-top:12px">
+        <div class="desc" style="aspect-ratio:auto;overflow:visible">
+          <div class="fig" id="vpFig"></div>
+          <div class="blk"><b>Décryptage détaillé</b><div id="vpDetail" style="white-space:pre-wrap;font-size:16px"></div></div>
+        </div>
+        <div class="ptitle" style="margin-top:14px">Description à coller dans D.IA.logue (Studio vidéo, mode ✨ Libre)</div>
+        <textarea id="vpPrompt" readonly style="width:100%;min-height:220px;margin-top:6px;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit;font-size:14px"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="vpCopy">📋 Copier</button>
+          <a class="btn ghost" href="https://dialogue-mu.vercel.app" target="_blank" rel="noopener" style="text-decoration:none">Ouvrir D.IA.logue</a>
+        </div>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -557,21 +580,9 @@ async function prepare(){
     if (tempo){ S.bpm = tempo.bpm; S.t0 = tempo.t0; S.E = tempo.E; S.Estart = S.start; } else { S.bpm = 180; S.t0 = S.start; S.E = null; }
     S.t1 = S.t0;
 
-    // 2) Corps image par image
-    msg.textContent = t("loadingModel"); bar.value = 0.05;
-    const lm = await createLandmarker();
-    msg.textContent = t("poses");
+    // Les corps sont détectés plus tard, seulement aux instants des comptes (beaucoup plus rapide)
     S.frames = [];
-    const total = Math.floor(S.duration * FPS);
-    for (let i = 0; i <= total; i++){
-      const time = S.start + i / FPS;
-      await seek(work, Math.min(time, S.end - 0.01));
-      const r = lm.detectForVideo(work, Math.round(time * 1000) + 1);
-      const poses = (r.landmarks || []).map(p => p.map(q => [+q.x.toFixed(4), +q.y.toFixed(4), +(q.visibility ?? 1).toFixed(2)]));
-      S.frames.push({ t: time, poses: sortPoses(poses) });
-      bar.value = 0.05 + 0.95 * (i / Math.max(total, 1));
-    }
-    lm.close && lm.close();
+    bar.value = 1;
     computeAnkleRange();
     if (!tempo) msg.textContent = t("noAudio");
     openStep2();
@@ -676,13 +687,24 @@ async function analyze(){
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
     const cx = cv.getContext("2d");
     const comptes = [];
+    let lm = null;
+    try{ lm = await createLandmarker(); }catch{ lm = null; } // sans détection, l'IA regarde quand même les images
+    S.frames = [];
     for (let i = 0; i < S.list.length; i++){
       const c = S.list[i];
       await seek(work, Math.min(c.t, S.end - 0.01));
+      if (lm){
+        try{
+          const r = lm.detectForVideo(work, Math.round(c.t * 1000) + i + 1);
+          const poses = (r.landmarks || []).map(p => p.map(q => [+q.x.toFixed(4), +q.y.toFixed(4), +(q.visibility ?? 1).toFixed(2)]));
+          S.frames.push({ t: c.t, poses: sortPoses(poses) });
+        }catch{ /* image suivante */ }
+      }
       cx.drawImage(work, 0, 0, W, H);
       comptes.push({ i, n: c.n, m: c.m, t: +c.t.toFixed(2), points: pointsAt(c.t), image: cv.toDataURL("image/jpeg", 0.6) });
       bar.value = 0.3 * (i + 1) / S.list.length;
     }
+    if (lm && lm.close) lm.close();
     // Envoi par petits paquets de 16 comptes (2 mesures), 2 à la fois.
     // Les fenêtres s'ouvrent dès le premier paquet prêt ; la suite arrive pendant qu'on regarde.
     const CHUNK = 16, PAR = 2, parts = [];
@@ -797,6 +819,7 @@ function openStep3(){
     cv.width = base; cv.height = Math.round(base / r);
     cv.style.aspectRatio = `${r}`;
   }
+  $("#vpOut").hidden = true; $("#vpMsg").textContent = "";
   setView(S.view);
   updateTips();
   window.scrollTo(0, 0);
@@ -865,6 +888,72 @@ document.querySelectorAll("#counts .n").forEach(b => b.onclick = () => {
 });
 $("#prevBar").onclick = () => { const k = currentK(); v.currentTime = Math.max(S.start, timeOfIndex(k - (countNumber(k) - 1) - 8, S.t1, S.bpm) + 0.01); };
 $("#nextBar").onclick = () => { const k = currentK(); v.currentTime = Math.min(S.end - 0.05, timeOfIndex(k - (countNumber(k) - 1) + 8, S.t1, S.bpm) + 0.01); };
+
+// ---------- Recréer en vidéo IA : décryptage très détaillé + prompt vidéo ----------
+async function makeVideoPrompt(){
+  const msg = $("#vpMsg"), btn = $("#vpBtn");
+  btn.disabled = true; $("#vpOut").hidden = true;
+  const wasPaused = v.paused, back = v.currentTime;
+  v.pause();
+  try{
+    const dur = Number($("#vpDur").value) || 10;
+    const k0 = currentK();
+    const t0 = Math.max(S.start, timeOfIndex(k0, S.t1, S.bpm));
+    const t9 = Math.min(S.end - 0.02, t0 + dur);
+    // Environ 9 images par seconde, quel que soit le tempo (2 à 4 images par temps), 80 images maximum
+    const beat = beatLen(S.bpm);
+    let sub = Math.min(4, Math.max(2, Math.round(beat * 9)));
+    while (sub > 2 && (t9 - t0) / (beat / sub) > 80) sub--;
+    const step = beat / sub;
+    const W = 448, H = Math.round(W / S.aspect);
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const cx = cv.getContext("2d");
+    const frames = [];
+    for (let j = 0, tt = t0; tt <= t9 && j < 80; j++, tt = t0 + j * step){
+      msg.textContent = `📸 Capture des images… ${j + 1}`;
+      await seek(v, tt);
+      cx.drawImage(v, 0, 0, W, H);
+      const kk = k0 + Math.floor(j / sub), n = countNumber(kk), r0 = j % sub;
+      const label = r0 ? `${n} +${r0}/${sub}` : `${n}` + (isPause(n) ? " (pause)" : "");
+      frames.push({ t: +(tt - t0).toFixed(2), label, image: cv.toDataURL("image/jpeg", 0.6) });
+    }
+    // ce que l'analyse a déjà trouvé sur ce passage (aide l'IA)
+    const hints = [];
+    for (let kk = k0; timeOfIndex(kk, S.t1, S.bpm) <= t9; kk++){
+      const e = entryForIndex(kk); if (!e) continue; // eslint-disable-line
+      hints.push(`compte ${countNumber(kk)} : ${pick(e.figure, lang)} | pieds : ${pick(e.pieds, lang)} | mains : ${pick(e.mains, lang)} | ${pick(e.corps, lang)}`);
+    }
+    const t1 = Date.now();
+    const tick = setInterval(() => { msg.textContent = `🧠 L'IA décrit chaque image en détail… ${Math.round((Date.now() - t1) / 1000)} s (1 à 3 minutes)`; }, 1000);
+    let r, data;
+    try{
+      const ctl = new AbortController(); const kill = setTimeout(() => ctl.abort(), 290000);
+      r = await fetch("/api/analyze", { method:"POST", headers:{ "content-type":"application/json" }, signal: ctl.signal,
+        body: JSON.stringify({ password, action:"videoprompt", role: $("#role").value, danse: $("#danse").value,
+          bpm: Math.round(S.bpm), duree: +(t9 - t0).toFixed(1), frames, hints }) }).catch(() => null);
+      clearTimeout(kill);
+      data = r ? await r.json().catch(() => ({ error:`Erreur ${r.status}` })) : { error:"Pas de réponse (connexion ou délai dépassé)" };
+    } finally { clearInterval(tick); }
+    if (!r || !r.ok) throw new Error(data.error || "Erreur");
+    $("#vpFig").textContent = data.figure || "";
+    $("#vpDetail").textContent = data.decryptage || "";
+    $("#vpPrompt").value = data.prompt || "";
+    $("#vpOut").hidden = false;
+    const real = frames.length ? frames[frames.length - 1].t : 0;
+    msg.textContent = `✅ C'est prêt (${frames.length} images sur ${real.toFixed(1).replace(".", ",")} s, tempo ${Math.round(S.bpm)} BPM). Vérifie le décryptage, puis copie la description.`;
+    $("#vpOut").scrollIntoView({ behavior:"smooth", block:"start" });
+  }catch(e){ msg.textContent = t("err") + e.message; }
+  await seek(v, back);
+  if (!wasPaused) v.play().catch(() => {});
+  btn.disabled = false;
+}
+$("#vpBtn").onclick = makeVideoPrompt;
+$("#vpCopy").onclick = async () => {
+  const ta = $("#vpPrompt");
+  try{ await navigator.clipboard.writeText(ta.value); }catch{ ta.select(); document.execCommand("copy"); }
+  $("#vpCopy").textContent = "✅ Copié";
+  setTimeout(() => { $("#vpCopy").textContent = "📋 Copier"; }, 2000);
+};
 $("#restart").onclick = () => location.reload();
 $("#otherPart").onclick = () => {
   v.pause(); S.analysis = null;
